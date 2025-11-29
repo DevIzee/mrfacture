@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mr Facture</title>
+    <!-- TailwindCSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Flowbite CDN for UI components -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/flowbite/2.2.0/flowbite.min.css" rel="stylesheet" />
+    <!-- Vue 3 CDN -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <!-- Dexie.js CDN for IndexedDB -->
+    <script src="https://unpkg.com/dexie@3/dist/dexie.js"></script>
+    <!-- SheetJS CDN for Excel parsing -->
+    <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
+    <!-- html2pdf.js CDN for PDF generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <!-- EmailJS SDK CDN -->
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+    <!-- ApexCharts CDN for charting -->
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+</head>
+        <style>
+            .loader {
+                border-top-color: #3498db;
+                animation: spin 1s linear infinite;
+            }
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+        </style>
+<body>
+    <div id="app"></div>
+
+    <!-- Flowbite JS (after Vue app script if components are initialized via data-attributes) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/flowbite/2.2.0/flowbite.min.js"></script>
+    <!-- Dexie DB config -->
+    <script src="../src/store/db.js"></script>
+    <!-- Stores -->
+    <script src="../src/store/stores.js"></script>
+    <!-- Helpers (doit être chargé avant pages.js et App.vue.js) -->
+    <script src="../src/utils/helpers.js"></script>
+    <!-- Pages Components -->
+    <script src="../src/pages/pages.js"></script>
+    <!-- App.vue.js (si utilisé explicitement) -->
+    <script src="../src/components/App.vue.js"></script>
+    <!-- Main Vue App Script: always last, after all dependencies -->
+    <script type="module" src="../src/app.js"></script>
+</body>
+</html>
