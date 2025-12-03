@@ -58,7 +58,7 @@ If you have Node.js, you can use the `http-server` package.
 
 3. Open your browser and visit the URL shown in the terminal (usually `http://localhost:8080`).
 
-## Project Tree Structure
+## Project Tree
 
 ```
 data/

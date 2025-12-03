@@ -1,13 +1,22 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Mr Facture</title>
     <!-- TailwindCSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Configuration Tailwind pour le dark mode -->
+    <script>
+      tailwind.config = {
+        darkMode: "class",
+      };
+    </script>
     <!-- Flowbite CDN for UI components -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/flowbite/2.2.0/flowbite.min.css" rel="stylesheet" />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/flowbite/2.2.0/flowbite.min.css"
+      rel="stylesheet"
+    />
     <!-- Vue 3 CDN -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <!-- Dexie.js CDN for IndexedDB -->
@@ -17,21 +26,162 @@
     <!-- html2pdf.js CDN for PDF generation -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <!-- EmailJS SDK CDN -->
-    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+    <script
+      type="text/javascript"
+      src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"
+    ></script>
     <!-- ApexCharts CDN for charting -->
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
-</head>
-        <style>
-            .loader {
-                border-top-color: #3498db;
-                animation: spin 1s linear infinite;
-            }
-            @keyframes spin {
-                0% { transform: rotate(0deg); }
-                100% { transform: rotate(360deg); }
-            }
-        </style>
-<body>
+    <style>
+      .loader {
+        border-top-color: #3498db;
+        animation: spin 1s linear infinite;
+      }
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* Amélioration du mode dark */
+      .dark {
+        color-scheme: dark;
+      }
+
+      /* Couleurs optimisées pour le dark mode */
+      .dark input:not([type="checkbox"]):not([type="radio"]),
+      .dark select,
+      .dark textarea {
+        background-color: #374151;
+        border-color: #4b5563;
+        color: #f9fafb;
+      }
+
+      .dark input:not([type="checkbox"]):not([type="radio"]):focus,
+      .dark select:focus,
+      .dark textarea:focus {
+        border-color: #60a5fa;
+        outline: none;
+        ring: 2px;
+        ring-color: #60a5fa;
+      }
+
+      .dark input[readonly],
+      .dark input[disabled] {
+        background-color: #1f2937;
+        color: #9ca3af;
+        cursor: not-allowed;
+      }
+
+      /* Tables en dark mode */
+      .dark table {
+        border-color: #374151;
+      }
+
+      .dark th {
+        background-color: #1f2937;
+        color: #f9fafb;
+      }
+
+      .dark td {
+        border-color: #374151;
+        color: #e5e7eb;
+      }
+
+      .dark tbody tr:hover {
+        background-color: #374151;
+      }
+
+      /* Boutons en dark mode */
+      .dark
+        button:not(.bg-blue-600):not(.bg-green-600):not(.bg-red-600):not(
+          .bg-purple-600
+        ):not(.bg-pink-600):not(.bg-yellow-600) {
+        background-color: #374151;
+        color: #f9fafb;
+      }
+
+      .dark
+        button:not(.bg-blue-600):not(.bg-green-600):not(.bg-red-600):not(
+          .bg-purple-600
+        ):not(.bg-pink-600):not(.bg-yellow-600):hover {
+        background-color: #4b5563;
+      }
+
+      /* Modals en dark mode */
+      .dark .modal-content {
+        background-color: #1f2937;
+        color: #f9fafb;
+      }
+
+      /* Cards et sections */
+      .dark .bg-gray-50 {
+        background-color: #374151 !important;
+      }
+
+      .dark .bg-gray-100 {
+        background-color: #4b5563 !important;
+      }
+
+      /* Scrollbar en dark mode */
+      .dark ::-webkit-scrollbar {
+        width: 12px;
+        height: 12px;
+      }
+
+      .dark ::-webkit-scrollbar-track {
+        background: #1f2937;
+      }
+
+      .dark ::-webkit-scrollbar-thumb {
+        background: #4b5563;
+        border-radius: 6px;
+      }
+
+      .dark ::-webkit-scrollbar-thumb:hover {
+        background: #6b7280;
+      }
+
+      /* Badges en dark mode */
+      .dark .bg-yellow-100 {
+        background-color: #78350f !important;
+      }
+
+      .dark .text-yellow-800 {
+        color: #fef3c7 !important;
+      }
+
+      .dark .bg-blue-100 {
+        background-color: #1e3a8a !important;
+      }
+
+      .dark .text-blue-800 {
+        color: #dbeafe !important;
+      }
+
+      /* Amélioration des bordures */
+      .dark .border {
+        border-color: #4b5563;
+      }
+
+      .dark .border-t,
+      .dark .border-b,
+      .dark .border-l,
+      .dark .border-r {
+        border-color: #4b5563;
+      }
+
+      /* Placeholders */
+      .dark ::placeholder {
+        color: #9ca3af;
+        opacity: 1;
+      }
+    </style>
+  </head>
+  <body>
     <div id="app"></div>
 
     <!-- Flowbite JS (after Vue app script if components are initialized via data-attributes) -->
@@ -48,5 +198,5 @@
     <script src="../src/components/App.vue.js"></script>
     <!-- Main Vue App Script: always last, after all dependencies -->
     <script type="module" src="../src/app.js"></script>
-</body>
+  </body>
 </html>

@@ -10,12 +10,13 @@
   "settings": {
     "id": 1,
     "theme": "light",
-    "sidebarColor": "#1e293b",
+    "sidebarColor": "#f1f5f9",
     "devisePrincipale": "XOF",
     "devises": ["XOF", "EUR"],
     "tauxConversion": {},
     "facturePrefix": "FAC",
     "factureIncrement": 1,
-    "factureNumType": "prefix-increment"  
+    "factureNumType": "prefix-increment",
+    "modeleFacture": "modele1"
   }
 }

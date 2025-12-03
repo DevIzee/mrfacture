@@ -28,21 +28,21 @@ window.App = {
   `,
   data() {
     return {
-      theme: localStorage.getItem('theme') || 'light',
-      sidebarColor: localStorage.getItem('sidebarColor') || '#1e293b',
-      currentPage: 'Dashboard',
+      theme: localStorage.getItem("theme") || "light",
+      sidebarColor: localStorage.getItem("sidebarColor") || "#f1f5f9",
+      currentPage: "Dashboard",
       menu: [
-        { page: 'Dashboard', label: 'Dashboard' },
-        { page: 'Clients', label: 'Clients' },
-        { page: 'Fournisseurs', label: 'Fournisseurs' },
-        { page: 'Taxes', label: 'Taxes' },
-        { page: 'Unites', label: 'Unités' },
-        { page: 'Categories', label: 'Catégories' },
-        { page: 'Designations', label: 'Designations' },
-        { page: 'Factures', label: 'Factures' },
-        { page: 'BonsCommandes', label: 'Bons de commande' },
-        { page: 'Parametres', label: 'Paramètres' },
-        { page: 'ImportExport', label: 'Import/Export' },
+        { page: "Dashboard", label: "Dashboard" },
+        { page: "Clients", label: "Clients" },
+        { page: "Fournisseurs", label: "Fournisseurs" },
+        { page: "Taxes", label: "Taxes" },
+        { page: "Unites", label: "Unités" },
+        { page: "Categories", label: "Catégories" },
+        { page: "Designations", label: "Designations" },
+        { page: "Factures", label: "Factures" },
+        { page: "BonsCommandes", label: "Bons de commande" },
+        { page: "Parametres", label: "Paramètres" },
+        { page: "ImportExport", label: "Import/Export" },
       ],
       toast: null,
       loading: false,
@@ -50,38 +50,63 @@ window.App = {
   },
   methods: {
     toggleTheme() {
-      this.theme = this.theme === 'dark' ? 'light' : 'dark';
-      localStorage.setItem('theme', this.theme);
+      this.theme = this.theme === "dark" ? "light" : "dark";
+
+      // Définir une couleur de sidebar cohérente selon le thème
+      if (this.theme === "dark") {
+        // Mode sombre : sidebar gris très foncé
+        this.sidebarColor = "#1f2937";
+      } else {
+        // Mode clair : sidebar gris ardoise
+        this.sidebarColor = "#f1f5f9";
+      }
+
+      // Sauvegarder les changements
+      localStorage.setItem("theme", this.theme);
+      localStorage.setItem("sidebarColor", this.sidebarColor);
+
+      // Appliquer immédiatement
       this.applyTheme();
+      this.applySidebarColor();
+
+      // Mettre à jour dans les settings
+      if (window.settingsStore) {
+        window.settingsStore.setAll({
+          theme: this.theme,
+          sidebarColor: this.sidebarColor,
+        });
+      }
     },
     applyTheme() {
-      if (this.theme === 'dark') {
-        document.documentElement.classList.add('dark');
+      if (this.theme === "dark") {
+        document.documentElement.classList.add("dark");
       } else {
-        document.documentElement.classList.remove('dark');
+        document.documentElement.classList.remove("dark");
       }
     },
     openNewFacture() {
       // Passe à la page Factures, puis attend que le composant soit monté avant d'ouvrir le modal
-      if (this.currentPage !== 'Factures') {
-        this.currentPage = 'Factures';
+      if (this.currentPage !== "Factures") {
+        this.currentPage = "Factures";
         // Attend le prochain tick du DOM pour garantir que FacturesPage est prêt
         setTimeout(() => {
           if (window.dispatchEvent) {
-            window.dispatchEvent(new CustomEvent('open-facture-modal'));
+            window.dispatchEvent(new CustomEvent("open-facture-modal"));
           }
         }, 100);
       } else {
         if (window.FacturesPage && window.FacturesPage.openAdd) {
           window.FacturesPage.openAdd();
         } else if (window.dispatchEvent) {
-          window.dispatchEvent(new CustomEvent('open-facture-modal'));
+          window.dispatchEvent(new CustomEvent("open-facture-modal"));
         }
       }
     },
-    showToast(msg, type = 'success') {
+    showToast(msg, type = "success") {
       this.toast = { msg, type };
-      setTimeout(() => { this.toast = null; }, 2500);
+      setTimeout(() => {
+        this.toast = null;
+      }, 2500);
     },
     setLoading(val) {
       this.loading = val;
@@ -91,13 +116,19 @@ window.App = {
       if (window.db && window.db.settings) {
         settings = await window.db.settings.toCollection().first();
       }
-      this.theme = (settings && settings.theme) || localStorage.getItem('theme') || 'light';
-      this.sidebarColor = (settings && settings.sidebarColor) || localStorage.getItem('sidebarColor') || '#1e293b';
+      this.theme =
+        (settings && settings.theme) ||
+        localStorage.getItem("theme") ||
+        "light";
+      this.sidebarColor =
+        (settings && settings.sidebarColor) ||
+        localStorage.getItem("sidebarColor") ||
+        "#f1f5f9";
       this.applyTheme();
       this.applySidebarColor();
     },
     applySidebarColor() {
-      const sidebar = document.querySelector('aside');
+      const sidebar = document.querySelector("aside");
       if (sidebar) sidebar.style.backgroundColor = this.sidebarColor;
     },
   },
@@ -106,24 +137,28 @@ window.App = {
     // Synchronisation dynamique sur settings-changed
     this._settingsListener = async (e) => {
       const { key, value } = e.detail || {};
-      if (key === 'theme') {
+      if (key === "theme") {
         this.theme = value;
-      } else if (key === 'sidebarColor') {
+      } else if (key === "sidebarColor") {
         this.sidebarColor = value;
       }
       // Ajout d'autres paramètres si besoin
     };
-    window.addEventListener('settings-changed', this._settingsListener);
+    window.addEventListener("settings-changed", this._settingsListener);
   },
   beforeUnmount() {
     if (this._settingsListener) {
-      window.removeEventListener('settings-changed', this._settingsListener);
+      window.removeEventListener("settings-changed", this._settingsListener);
     }
   },
-    watch: {
-      theme() { this.applyTheme(); },
-      sidebarColor() { this.applySidebarColor(); }
+  watch: {
+    theme() {
+      this.applyTheme();
     },
+    sidebarColor() {
+      this.applySidebarColor();
+    },
+  },
   computed: {
     currentComponent() {
       const map = {
@@ -139,7 +174,7 @@ window.App = {
         Parametres: window.ParametresPage,
         ImportExport: window.ImportExportPage,
       };
-      return map[this.currentPage] || { template: '<div>Page inconnue</div>' };
+      return map[this.currentPage] || { template: "<div>Page inconnue</div>" };
     },
   },
   template: `
@@ -176,4 +211,4 @@ window.App = {
       </div>
     </div>
   `,
-  };
+};
