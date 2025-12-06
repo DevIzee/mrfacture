@@ -18,6 +18,7 @@
     "factureIncrement": 1,
     "factureNumType": "prefix-increment",
     "modeleFacture": "modele1",
+    "modeleBonLivraison": "modele1",
     "logoEntete": "",
     "logoPiedPage": "",
     "mentionSpeciale": ""

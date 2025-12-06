@@ -31,7 +31,11 @@
       src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"
     ></script>
     <!-- ApexCharts CDN for charting -->
-    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <!-- <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script> -->
+
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
     <style>
       .loader {
         border-top-color: #3498db;
@@ -115,6 +119,74 @@
       .dark .modal-content {
         background-color: #1f2937;
         color: #f9fafb;
+      }
+
+      /* Styles d'impression */
+      @media print {
+        /* Masquer tout sauf le contenu de la facture */
+        body > *:not(#facture-preview-block) {
+          display: none !important;
+        }
+
+        #facture-preview-block {
+          display: block !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          max-height: none !important;
+          overflow: visible !important;
+          border: none !important;
+          box-shadow: none !important;
+        }
+
+        /* Forcer les couleurs à l'impression */
+        * {
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+          color-adjust: exact !important;
+        }
+
+        /* Gérer les sauts de page */
+        table {
+          page-break-inside: auto;
+        }
+
+        tr {
+          page-break-inside: avoid;
+          page-break-after: auto;
+        }
+
+        thead {
+          display: table-header-group;
+        }
+
+        tfoot {
+          display: table-footer-group;
+        }
+
+        /* Éviter les sauts de page après ces éléments */
+        h1,
+        h2,
+        h3,
+        h4,
+        h5,
+        h6 {
+          page-break-after: avoid;
+        }
+
+        /* Marges de page */
+        @page {
+          margin: 1.5cm;
+          size: A4 portrait;
+        }
+
+        /* S'assurer que les logos s'impriment */
+        img {
+          max-width: 100% !important;
+          height: auto !important;
+          page-break-inside: avoid;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
       }
 
       /* Cards et sections */

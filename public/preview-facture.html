@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Prévisualisation Facture</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      body {
+        margin: 0;
+        padding: 20px;
+        background: #f3f4f6;
+      }
+
+      @media print {
+        body {
+          background: white;
+          padding: 0;
+        }
+
+        .no-print {
+          display: none !important;
+        }
+
+        #facture-content {
+          margin: 0 !important;
+          padding: 0 !important;
+        }
+
+        * {
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+          color-adjust: exact !important;
+        }
+
+        img {
+          max-width: 100% !important;
+          height: auto !important;
+          page-break-inside: avoid;
+        }
+
+        @page {
+          margin: 1.5cm;
+          size: A4 portrait;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Barre d'actions -->
+    <div class="no-print fixed top-4 right-4 flex gap-2 z-50">
+      <button
+        onclick="window.print()"
+        class="bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700"
+      >
+        🖨️ Imprimer
+      </button>
+      <button
+        onclick="exportPDF()"
+        class="bg-green-600 text-white px-4 py-2 rounded shadow hover:bg-green-700"
+      >
+        📄 PDF
+      </button>
+      <button
+        onclick="window.close()"
+        class="bg-gray-600 text-white px-4 py-2 rounded shadow hover:bg-gray-700"
+      >
+        ✕ Fermer
+      </button>
+    </div>
+
+    <!-- Contenu de la facture -->
+    <div
+      id="facture-content"
+      class="max-w-5xl mx-auto bg-white shadow-lg"
+    ></div>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="../src/utils/helpers.js"></script>
+
+    <script>
+      function toDirectDriveLink(url) {
+        if (!url) return "";
+
+        // Vérifier si c'est un lien Google Drive partagé
+        const match = url.match(
+          /https:\/\/drive\.google\.com\/file\/d\/([^/]+)/
+        );
+        if (match && match[1]) {
+          const id = match[1];
+          // Utiliser l'API de téléchargement direct de Google Drive
+          return `https://drive.google.com/uc?export=view&id=${id}`;
+        }
+
+        return url;
+      }
+
+      // Récupérer la facture depuis localStorage
+      const factureData = JSON.parse(localStorage.getItem("facture_preview"));
+
+      if (!factureData) {
+        document.getElementById("facture-content").innerHTML = `
+      <div class="p-8 text-center">
+        <h2 class="text-2xl font-bold text-red-600 mb-4">Erreur</h2>
+        <p>Aucune facture à afficher.</p>
+      </div>
+    `;
+      } else {
+        const settingsStr = localStorage.getItem("app_settings");
+        const settings = settingsStr ? JSON.parse(settingsStr) : {};
+
+        // Transformer les liens Drive
+        settings.logoEntete = toDirectDriveLink(settings.logoEntete);
+        settings.logoPiedPage = toDirectDriveLink(settings.logoPiedPage);
+
+        const clientsStr = localStorage.getItem("app_clients");
+        const clients = clientsStr ? JSON.parse(clientsStr) : [];
+
+        const designationsStr = localStorage.getItem("app_designations");
+        const designations = designationsStr ? JSON.parse(designationsStr) : [];
+
+        const unitesStr = localStorage.getItem("app_unites");
+        const unites = unitesStr ? JSON.parse(unitesStr) : [];
+
+        const taxesStr = localStorage.getItem("app_taxes");
+        const taxes = taxesStr ? JSON.parse(taxesStr) : [];
+
+        // Générer le HTML de la facture
+        generateFactureHTML(
+          factureData,
+          settings,
+          clients,
+          designations,
+          unites,
+          taxes
+        );
+      }
+
+      function generateFactureHTML(
+        facture,
+        settings,
+        clients,
+        designations,
+        unites,
+        taxes
+      ) {
+        const modele = settings.modeleFacture || "modele1";
+        const devise = settings.devisePrincipale || "XOF";
+        const mentionSpeciale = settings.mentionSpeciale || "";
+
+        const client = clients.find((c) => c.id == facture.clientId);
+        const clientNom = client ? client.nom : "--";
+
+        // Utiliser directement les URLs avec tailles ajustées
+        const enteteHTML = settings.logoEntete
+          ? `<div style="text-align: center; margin-bottom: 20px;">
+              <img src="${settings.logoEntete}" alt="Logo" style="max-height: 100px; width: auto; object-fit: contain;" crossorigin="anonymous" onerror="console.error('Erreur chargement logo entete')">
+            </div>`
+          : "";
+
+        const piedPageHTML = `
+          ${
+            settings.logoPiedPage
+              ? `
+            <div style="text-align: center; margin-top: 40px; padding-top: 20px;">
+              <img src="${settings.logoPiedPage}" alt="Logo pied de page" style="max-height: 80px; width: auto; object-fit: contain;" crossorigin="anonymous" onerror="console.error('Erreur chargement logo pied')">
+            </div>
+          `
+              : ""
+          }
+          ${
+            mentionSpeciale
+              ? `
+            <div style="margin-top: 30px; padding: 15px; background: #f8f9fa; border-left: 3px solid #2563eb; font-size: 12px; color: #666; line-height: 1.6;">
+              ${mentionSpeciale.replace(/\n/g, "<br>")}
+            </div>
+          `
+              : ""
+          }
+        `;
+        const getLigneHTML = (l, idx) => {
+          const des = designations.find((d) => d.id == l.designationId);
+          const desNom = des ? des.nom : "--";
+          const unite =
+            des && des.uniteId ? unites.find((u) => u.id == des.uniteId) : null;
+          const uniteAbrev = unite ? ` (${unite.abreviation})` : "";
+
+          if (modele === "modele1") {
+            return `
+        <tr>
+          <td style="padding: 12px; border: 1px solid #d1d5db;">${desNom.toUpperCase()}${uniteAbrev}</td>
+          <td style="padding: 12px; border: 1px solid #d1d5db; text-align: center;">${
+            l.quantite
+          }</td>
+          <td style="padding: 12px; border: 1px solid #d1d5db; text-align: right;">${Math.round(
+            l.prix
+          ).toLocaleString("fr-FR")}</td>
+          <td style="padding: 12px; border: 1px solid #d1d5db; text-align: right; font-weight: bold;">${Math.round(
+            l.total
+          ).toLocaleString("fr-FR")}</td>
+        </tr>
+      `;
+          } else if (modele === "modele2") {
+            return `
+        <tr style="background: ${idx % 2 === 0 ? "#f8f9fa" : "white"};">
+          <td style="padding: 12px;">${desNom.toUpperCase()}${uniteAbrev}</td>
+          <td style="padding: 12px; text-align: center;">${l.quantite}</td>
+          <td style="padding: 12px; text-align: right;">${Math.round(
+            l.prix
+          ).toLocaleString("fr-FR")}</td>
+          <td style="padding: 12px; text-align: right; font-weight: bold; color: #667eea;">${Math.round(
+            l.total
+          ).toLocaleString("fr-FR")}</td>
+        </tr>
+      `;
+          } else {
+            return `
+        <tr style="border-bottom: 1px solid #ddd;">
+          <td style="padding: 12px 0;">${desNom.toUpperCase()}${uniteAbrev}</td>
+          <td style="padding: 12px 0; text-align: center;">${l.quantite}</td>
+          <td style="padding: 12px 0; text-align: right;">${Math.round(
+            l.prix
+          ).toLocaleString("fr-FR")}</td>
+          <td style="padding: 12px 0; text-align: right;">${Math.round(
+            l.total
+          ).toLocaleString("fr-FR")}</td>
+        </tr>
+      `;
+          }
+        };
+
+        let html = "";
+
+        // MODÈLE 1 - CLASSIQUE
+        if (modele === "modele1") {
+          html = `
+      <div style="font-family: Arial, sans-serif; padding: 40px; max-width: 800px; margin: 0 auto; background: white; color: #000;">
+        ${enteteHTML}
+        <div style="border-bottom: 3px solid #2563eb; padding-bottom: 20px; margin-bottom: 30px;">
+          <h1 style="margin: 0; font-size: 32px; color: #2563eb; text-transform: uppercase;">${
+            facture.type === "proforma" ? "FACTURE PROFORMA" : "FACTURE"
+          }</h1>
+          <p style="margin: 5px 0; font-size: 18px; color: #666; text-transform: uppercase;">N° ${
+            facture.numero
+          }</p>
+          <p style="margin: 5px 0; color: #666; text-transform: uppercase;">DATE : ${window.helpers.formatDateFrancais(
+            facture.date
+          )}</p>
+        </div>
+        <div style="margin-bottom: 30px;">
+          <p style="margin: 5px 0; text-transform: uppercase;"><strong>CLIENT :</strong> ${clientNom.toUpperCase()}</p>
+          ${
+            facture.objet
+              ? `<p style="margin: 15px 0; font-size: 14px; text-transform: uppercase;"><strong>OBJET :</strong> ${facture.objet}</p>`
+              : ""
+          }
+        </div>
+        ${
+          facture.type === "proforma" &&
+          (facture.validiteOffre ||
+            facture.delaisLivraison ||
+            facture.delaisExecution ||
+            facture.conditionPaiement)
+            ? `
+          <div style="background: #fef3c7; padding: 15px; border-left: 4px solid #f59e0b; margin-bottom: 20px;">
+            <p style="margin: 0 0 10px 0; font-weight: bold; color: #92400e; text-transform: uppercase;">CONDITIONS DE L'OFFRE</p>
+            ${
+              facture.validiteOffre
+                ? `<p style="margin: 5px 0; text-transform: uppercase;"><strong>VALIDITÉ :</strong> ${facture.validiteOffre.toUpperCase()}</p>`
+                : ""
+            }
+            ${
+              facture.delaisLivraison
+                ? `<p style="margin: 5px 0; text-transform: uppercase;"><strong>DÉLAIS DE LIVRAISON :</strong> ${facture.delaisLivraison.toUpperCase()}</p>`
+                : ""
+            }
+            ${
+              facture.delaisExecution
+                ? `<p style="margin: 5px 0; text-transform: uppercase;"><strong>DÉLAIS D'EXÉCUTION :</strong> ${facture.delaisExecution.toUpperCase()}</p>`
+                : ""
+            }
+            ${
+              facture.conditionPaiement
+                ? `<p style="margin: 5px 0; text-transform: uppercase;"><strong>CONDITION DE PAIEMENT :</strong> ${facture.conditionPaiement.toUpperCase()}</p>`
+                : ""
+            }
+          </div>
+        `
+            : ""
+        }
+        ${
+          facture.garantie
+            ? `<div style="background: #dbeafe; padding: 10px; border-left: 4px solid #2563eb; margin-bottom: 20px; text-transform: uppercase;"><strong>GARANTIE :</strong> ${facture.garantie.toUpperCase()}</div>`
+            : ""
+        }
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
+          <thead>
+            <tr style="background: #f3f4f6;">
+              <th style="border: 1px solid #d1d5db; padding: 12px; text-align: left; text-transform: uppercase;">DÉSIGNATION</th>
+              <th style="border: 1px solid #d1d5db; padding: 12px; text-align: center; width: 80px; text-transform: uppercase;">QTÉ</th>
+              <th style="border: 1px solid #d1d5db; padding: 12px; text-align: right; width: 120px; text-transform: uppercase;">P.U.</th>
+              <th style="border: 1px solid #d1d5db; padding: 12px; text-align: right; width: 120px; text-transform: uppercase;">TOTAL</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${facture.lignes.map((l, idx) => getLigneHTML(l, idx)).join("")}
+          </tbody>
+        </table>
+        <div style="text-align: right; margin-top: 30px;">
+          <div style="display: inline-block; min-width: 300px; text-align: left;">
+            <div style="padding: 10px 0; border-bottom: 1px solid #d1d5db; display: flex; justify-content: space-between; text-transform: uppercase;">
+              <span>TOTAL HT :</span>
+              <span style="font-weight: bold;">${Math.round(
+                facture.totalHT
+              ).toLocaleString("fr-FR")} ${
+            devise === "XOF" ? "F CFA" : devise
+          }</span>
+            </div>
+            <div style="padding: 10px 0; border-bottom: 1px solid #d1d5db; display: flex; justify-content: space-between; text-transform: uppercase;">
+              <span>TVA :</span>
+              <span style="font-weight: bold; color: #f59e0b;">${Math.round(
+                facture.totalTVA
+              ).toLocaleString("fr-FR")} ${
+            devise === "XOF" ? "F CFA" : devise
+          }</span>
+            </div>
+            <div style="padding: 15px 0; border-top: 2px solid #000; display: flex; justify-content: space-between; font-size: 20px; text-transform: uppercase;">
+              <span style="font-weight: bold;">TOTAL TTC :</span>
+              <span style="font-weight: bold; color: #2563eb;">${Math.round(
+                facture.totalTTC
+              ).toLocaleString("fr-FR")} ${
+            devise === "XOF" ? "F CFA" : devise
+          }</span>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top: 30px; padding: 15px; background: #f3f4f6; border-left: 4px solid #2563eb;">
+          <p style="margin: 0; font-weight: bold; text-transform: uppercase;">ARRÊTÉ LA PRÉSENTE FACTURE À LA SOMME DE :</p>
+          <p style="margin: 5px 0 0 0; font-size: 14px; font-weight: bold;">${window.helpers.nombreEnLettres(
+            facture.totalTTC,
+            devise
+          )}</p>
+        </div>
+        <div style="margin-top: 60px; text-align: right;">
+          <p style="margin: 0; font-weight: bold; text-transform: uppercase;">LE DIRECTEUR</p>
+        </div>
+        ${piedPageHTML}
+      </div>
+    `;
+        }
+
+        // MODÈLE 2 - MODERNE
+        else if (modele === "modele2") {
+          html = `
+      <div style="font-family: 'Segoe UI', Tahoma, sans-serif; padding: 50px; max-width: 850px; margin: 0 auto; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #000;">
+        <div style="background: white; padding: 40px; border-radius: 15px; box-shadow: 0 10px 40px rgba(0,0,0,0.1);">
+          ${enteteHTML}
+          <div style="text-align: center; margin-bottom: 40px;">
+            <div style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 40px; border-radius: 50px; margin-bottom: 20px;">
+              <h1 style="margin: 0; font-size: 28px; letter-spacing: 2px; text-transform: uppercase;">${
+                facture.type === "proforma" ? "PROFORMA" : "FACTURE"
+              }</h1>
+            </div>
+            <p style="margin: 10px 0; font-size: 24px; color: #667eea; font-weight: bold; text-transform: uppercase;">№ ${
+              facture.numero
+            }</p>
+            <p style="margin: 5px 0; color: #666; font-size: 14px; text-transform: uppercase;">📅 ${window.helpers.formatDateFrancais(
+              facture.date
+            )}</p>
+          </div>
+          <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 30px; border-left: 5px solid #667eea;">
+            <p style="margin: 5px 0; font-size: 16px; text-transform: uppercase;"><strong style="color: #667eea;">👤 CLIENT :</strong> ${clientNom.toUpperCase()}</p>
+            ${
+              facture.objet
+                ? `<p style="margin: 15px 0; font-size: 14px; text-transform: uppercase;"><strong style="color: #667eea;">📋 OBJET :</strong> ${facture.objet}</p>`
+                : ""
+            }
+          </div>
+          ${
+            facture.type === "proforma" &&
+            (facture.validiteOffre ||
+              facture.delaisLivraison ||
+              facture.delaisExecution ||
+              facture.conditionPaiement)
+              ? `
+            <div style="background: linear-gradient(135deg, #ffeaa7 0%, #fdcb6e 100%); padding: 20px; border-radius: 10px; margin-bottom: 25px;">
+              <p style="margin: 0 0 10px 0; font-weight: bold; color: #2d3436; text-transform: uppercase;">⚡ CONDITIONS</p>
+              ${
+                facture.validiteOffre
+                  ? `<p style="margin: 5px 0; text-transform: uppercase;">✓ VALIDITÉ : ${facture.validiteOffre.toUpperCase()}</p>`
+                  : ""
+              }
+              ${
+                facture.delaisLivraison
+                  ? `<p style="margin: 5px 0; text-transform: uppercase;">✓ LIVRAISON : ${facture.delaisLivraison.toUpperCase()}</p>`
+                  : ""
+              }
+              ${
+                facture.delaisExecution
+                  ? `<p style="margin: 5px 0; text-transform: uppercase;">✓ EXÉCUTION : ${facture.delaisExecution.toUpperCase()}</p>`
+                  : ""
+              }
+              ${
+                facture.conditionPaiement
+                  ? `<p style="margin: 5px 0; text-transform: uppercase;">✓ PAIEMENT : ${facture.conditionPaiement.toUpperCase()}</p>`
+                  : ""
+              }
+            </div>
+          `
+              : ""
+          }
+          ${
+            facture.garantie
+              ? `<div style="background: #e3f2fd; padding: 15px; border-radius: 10px; margin-bottom: 25px; border-left: 5px solid #2196f3; text-transform: uppercase;"><strong>🛡️ GARANTIE :</strong> ${facture.garantie.toUpperCase()}</div>`
+              : ""
+          }
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px; border-radius: 10px; overflow: hidden;">
+            <thead>
+              <tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <th style="padding: 15px; text-align: left; text-transform: uppercase;">DÉSIGNATION</th>
+                <th style="padding: 15px; text-align: center; width: 80px; text-transform: uppercase;">QTÉ</th>
+                <th style="padding: 15px; text-align: right; width: 120px; text-transform: uppercase;">P.U.</th>
+                <th style="padding: 15px; text-align: right; width: 120px; text-transform: uppercase;">TOTAL</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${facture.lignes.map((l, idx) => getLigneHTML(l, idx)).join("")}
+            </tbody>
+          </table>
+          <div style="text-align: right; margin-top: 30px;">
+            <div style="display: inline-block; min-width: 350px; background: #f8f9fa; padding: 25px; border-radius: 15px;">
+              <div style="padding: 10px 0; display: flex; justify-content: space-between; font-size: 16px; text-transform: uppercase;">
+                <span>TOTAL HT</span>
+                <span style="font-weight: bold;">${Math.round(
+                  facture.totalHT
+                ).toLocaleString("fr-FR")} ${
+            devise === "XOF" ? "F CFA" : devise
+          }</span>
+              </div>
+              <div style="padding: 10px 0; display: flex; justify-content: space-between; font-size: 16px; border-bottom: 2px dashed #ddd; text-transform: uppercase;">
+                <span>TVA</span>
+                <span style="font-weight: bold; color: #f59e0b;">${Math.round(
+                  facture.totalTVA
+                ).toLocaleString("fr-FR")} ${
+            devise === "XOF" ? "F CFA" : devise
+          }</span>
+              </div>
+              <div style="padding: 20px 0; display: flex; justify-content: space-between; font-size: 24px; text-transform: uppercase;">
+                <span style="font-weight: bold;">TOTAL TTC</span>
+                <span style="font-weight: bold; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">${Math.round(
+                  facture.totalTTC
+                ).toLocaleString("fr-FR")} ${
+            devise === "XOF" ? "F CFA" : devise
+          }</span>
+              </div>
+            </div>
+          </div>
+          <div style="margin-top: 30px; padding: 15px; background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); border-radius: 10px; border-left: 4px solid #667eea;">
+            <p style="margin: 0; font-weight: bold; text-transform: uppercase;">ARRÊTÉ LA PRÉSENTE FACTURE À LA SOMME DE :</p>
+            <p style="margin: 5px 0 0 0; font-size: 14px; font-weight: bold;">${window.helpers.nombreEnLettres(
+              facture.totalTTC,
+              devise
+            )}</p>
+          </div>
+          <div style="margin-top: 60px; text-align: right;">
+            <p style="margin: 0; font-weight: bold; text-transform: uppercase; color: #667eea;">LE DIRECTEUR</p>
+          </div>
+          ${piedPageHTML}
+        </div>
+      </div>
+    `;
+        }
+
+        // MODÈLE 3 - MINIMALISTE
+        else if (modele === "modele3") {
+          html = `
+      <div style="font-family: 'Courier New', monospace; padding: 60px 40px; max-width: 750px; margin: 0 auto; background: white; color: #000;">
+        ${enteteHTML}
+        <div style="border-bottom: 1px solid #000; padding-bottom: 10px; margin-bottom: 40px;">
+          <h1 style="margin: 0; font-size: 24px; font-weight: normal; letter-spacing: 5px; text-transform: uppercase;">${
+            facture.type === "proforma" ? "PROFORMA" : "INVOICE"
+          }</h1>
+        </div>
+        <div style="margin-bottom: 40px; line-height: 1.8;">
+          <p style="margin: 5px 0; text-transform: uppercase;">N° ${
+            facture.numero
+          }</p>
+          <p style="margin: 5px 0; text-transform: uppercase;">DATE: ${window.helpers.formatDateFrancais(
+            facture.date
+          )}</p>
+          <p style="margin: 5px 0; text-transform: uppercase;">CLIENT: ${clientNom.toUpperCase()}</p>
+          ${
+            facture.objet
+              ? `<p style="margin: 15px 0; text-transform: uppercase;">OBJET: ${facture.objet}</p>`
+              : ""
+          }
+        </div>
+        ${
+          facture.type === "proforma" &&
+          (facture.validiteOffre ||
+            facture.delaisLivraison ||
+            facture.delaisExecution ||
+            facture.conditionPaiement)
+            ? `
+          <div style="border-left: 2px solid #000; padding-left: 15px; margin-bottom: 30px; line-height: 1.8;">
+            ${
+              facture.validiteOffre
+                ? `<p style="margin: 5px 0; text-transform: uppercase;">VALIDITÉ: ${facture.validiteOffre.toUpperCase()}</p>`
+                : ""
+            }
+            ${
+              facture.delaisLivraison
+                ? `<p style="margin: 5px 0; text-transform: uppercase;">LIVRAISON: ${facture.delaisLivraison.toUpperCase()}</p>`
+                : ""
+            }
+            ${
+              facture.delaisExecution
+                ? `<p style="margin: 5px 0; text-transform: uppercase;">EXÉCUTION: ${facture.delaisExecution.toUpperCase()}</p>`
+                : ""
+            }
+            ${
+              facture.conditionPaiement
+                ? `<p style="margin: 5px 0; text-transform: uppercase;">PAIEMENT: ${facture.conditionPaiement.toUpperCase()}</p>`
+                : ""
+            }
+          </div>
+        `
+            : ""
+        }
+        ${
+          facture.garantie
+            ? `<div style="border-left: 2px solid #000; padding-left: 15px; margin-bottom: 30px;"><p style="margin: 0; text-transform: uppercase;">GARANTIE: ${facture.garantie.toUpperCase()}</p></div>`
+            : ""
+        }
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 40px;">
+          <thead>
+            <tr style="border-bottom: 2px solid #000;">
+              <th style="padding: 10px 0; text-align: left; font-weight: normal; text-transform: uppercase;">DÉSIGNATION</th>
+              <th style="padding: 10px 0; text-align: center; width: 60px; font-weight: normal; text-transform: uppercase;">QTÉ</th>
+              <th style="padding: 10px 0; text-align: right; width: 100px; font-weight: normal; text-transform: uppercase;">P.U.</th>
+              <th style="padding: 10px 0; text-align: right; width: 100px; font-weight: normal; text-transform: uppercase;">TOTAL</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${facture.lignes.map((l, idx) => getLigneHTML(l, idx)).join("")}
+          </tbody>
+        </table>
+        <div style="text-align: right; border-top: 2px solid #000; padding-top: 20px;">
+          <div style="display: inline-block; min-width: 300px; text-align: left; line-height: 2;">
+            <div style="display: flex; justify-content: space-between; text-transform: uppercase;">
+              <span>TOTAL HT:</span>
+              <span>${Math.round(facture.totalHT).toLocaleString("fr-FR")} ${
+            devise === "XOF" ? "F CFA" : devise
+          }</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; text-transform: uppercase;">
+              <span>TVA:</span>
+              <span>${Math.round(facture.totalTVA).toLocaleString("fr-FR")} ${
+            devise === "XOF" ? "F CFA" : devise
+          }</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-top: 10px; padding-top: 10px; border-top: 1px solid #000; font-size: 18px; text-transform: uppercase;">
+              <span style="font-weight: bold;">TOTAL TTC:</span>
+              <span style="font-weight: bold;">${Math.round(
+                facture.totalTTC
+              ).toLocaleString("fr-FR")} ${
+            devise === "XOF" ? "F CFA" : devise
+          }</span>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top: 30px; padding: 15px; background: #f3f4f6; border-left: 2px solid #000;">
+          <p style="margin: 0; font-weight: bold; text-transform: uppercase;">ARRÊTÉ LA PRÉSENTE FACTURE À LA SOMME DE :</p>
+          <p style="margin: 5px 0 0 0; font-size: 12px; font-weight: bold;">${window.helpers.nombreEnLettres(
+            facture.totalTTC,
+            devise
+          )}</p>
+        </div>
+        <div style="margin-top: 60px; text-align: right;">
+          <p style="margin: 0; font-weight: bold; text-transform: uppercase;">LE DIRECTEUR</p>
+        </div>
+        ${piedPageHTML}
+      </div>
+    `;
+        }
+
+        document.getElementById("facture-content").innerHTML = html;
+      }
+
+      function exportPDF() {
+        const element = document.getElementById("facture-content");
+        const factureData = JSON.parse(localStorage.getItem("facture_preview"));
+        const filename = `facture_${factureData.numero.replace(
+          /[^a-zA-Z0-9]/g,
+          "_"
+        )}.pdf`;
+
+        html2pdf()
+          .set({
+            margin: 10,
+            filename: filename,
+            html2canvas: { scale: 2, useCORS: true },
+            jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+          })
+          .from(element)
+          .save();
+      }
+    </script>
+  </body>
+</html>

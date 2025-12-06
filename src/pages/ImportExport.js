@@ -17,6 +17,21 @@ window.ImportExportPage = {
       XLSX.writeFile(wb, `${table}.xlsx`);
       this.exportMessage = `Export Excel ${table} effectué !`;
     },
+    async exportDesignationsProduits() {
+      const designations = await db.designations.toArray();
+      const produits = designations.filter((d) => d.type === "produit");
+
+      if (produits.length === 0) {
+        this.exportMessage = "Aucun produit à exporter";
+        return;
+      }
+
+      const ws = XLSX.utils.json_to_sheet(produits);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Produits");
+      XLSX.writeFile(wb, "designations_produits.xlsx");
+      this.exportMessage = `Export de ${produits.length} produit(s) effectué !`;
+    },
     async importExcel(e, table) {
       const file = e.target.files[0];
       if (!file) return;
@@ -118,6 +133,10 @@ window.ImportExportPage = {
           <div class="flex flex-wrap gap-2">
             <button v-for="table in ['clients','fournisseurs','taxes','unites','categories','designations','factures','bons_commandes']" :key="table" class="bg-green-600 text-white px-3 py-1 rounded shadow hover:bg-green-700 mb-1" @click="() => exportExcel(table)">
               Exporter {{ table }}
+            </button>
+
+            <button class="bg-purple-600 text-white px-3 py-1 rounded shadow hover:bg-purple-700 mb-1" @click="exportDesignationsProduits">
+              Exporter désignations (produits uniquement)
             </button>
           </div>
         </div>

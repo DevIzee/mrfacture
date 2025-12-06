@@ -6,6 +6,7 @@ window.FacturesPage = {
       clients: [],
       designations: [],
       taxes: [],
+      unites: [],
       search: "",
       showModal: false,
       editId: null,
@@ -31,6 +32,8 @@ window.FacturesPage = {
       emailTo: "",
       emailStatus: "",
       previewHTML: "",
+      showBonLivraison: false,
+      bonLivraisonHTML: "",
     };
   },
   computed: {
@@ -39,7 +42,14 @@ window.FacturesPage = {
     },
     filtered() {
       const s = this.search.toLowerCase();
-      return this.factures.filter((f) => f.numero.toLowerCase().includes(s));
+      return this.factures
+        .filter((f) => f.numero.toLowerCase().includes(s))
+        .sort((a, b) => {
+          // Trier du plus récent au plus ancien
+          if (!a.date) return 1;
+          if (!b.date) return -1;
+          return new Date(b.date) - new Date(a.date);
+        });
     },
     // Filtre uniquement les taxes de type TVA
     tvaList() {
@@ -50,6 +60,7 @@ window.FacturesPage = {
     this.clients = await clientsStore.getAll();
     this.designations = await designationsStore.getAll();
     this.taxes = await taxesStore.getAll();
+    this.unites = await unitesStore.getAll();
 
     // Récupère la devise depuis settings au chargement
     const settings = await window.settingsStore.get();
@@ -183,6 +194,36 @@ window.FacturesPage = {
       this.error = "";
       this.preview = false;
       this.showModal = true;
+    },
+    async openBonLivraisonFromList(f) {
+      // Charger la facture dans le formulaire
+      this.editId = f.id;
+      this.form = {
+        numero: f.numero,
+        clientId: f.clientId,
+        date: f.date,
+        type: f.type || "normale",
+        objet: f.objet || "",
+        garantie: f.garantie || "",
+        validiteOffre: f.validiteOffre || "",
+        delaisLivraison: f.delaisLivraison || "",
+        delaisExecution: f.delaisExecution || "",
+        conditionPaiement: f.conditionPaiement || "",
+        lignes: f.lignes ? JSON.parse(JSON.stringify(f.lignes)) : [],
+        totalHT: f.totalHT || 0,
+        totalTTC: f.totalTTC || 0,
+        totalTVA: f.totalTVA || 0,
+      };
+
+      // Récupérer la devise
+      const settings = await window.settingsStore.get();
+      this.devise = (settings && settings.devisePrincipale) || "XOF";
+
+      // Générer et afficher le bon de livraison
+      this.bonLivraisonHTML = await this.getBonLivraisonHTML();
+      this.showBonLivraison = true;
+      this.showModal = true;
+      this.preview = false;
     },
     // Méthode pour forcer les majuscules sur l'objet
     updateObjet() {
@@ -432,34 +473,591 @@ window.FacturesPage = {
       const client = this.clients.find((c) => c.id == this.form.clientId);
       const clientNom = client ? client.nom : "--";
 
-      // Bloc pour l'en-tête avec logo
-      const enteteHTML = logoEntete
+      // Utiliser directement les URLs avec tailles ajustées
+      const enteteHTML = settings.logoEntete
         ? `<div style="text-align: center; margin-bottom: 20px;">
-         <img src="${logoEntete}" alt="Logo" style="max-height: 80px; max-width: 300px; object-fit: contain;" onerror="this.style.display='none'">
-       </div>`
+            <img src="${settings.logoEntete}" alt="Logo" style="max-height: 100px; width: auto; object-fit: contain;" crossorigin="anonymous" onerror="console.error('Erreur chargement logo entete')">
+          </div>`
         : "";
 
-      // Bloc pour le pied de page avec logo et mention
       const piedPageHTML = `
-    ${
-      logoPiedPage
-        ? `
-      <div style="text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd;">
-        <img src="${logoPiedPage}" alt="Logo pied de page" style="max-height: 60px; max-width: 250px; object-fit: contain;" onerror="this.style.display='none'">
+        ${
+          settings.logoPiedPage
+            ? `
+          <div style="text-align: center; margin-top: 40px; padding-top: 20px;">
+            <img src="${settings.logoPiedPage}" alt="Logo pied de page" style="max-height: 80px; width: auto; object-fit: contain;" crossorigin="anonymous" onerror="console.error('Erreur chargement logo pied')">
+          </div>`
+            : ""
+        }
+        ${
+          mentionSpeciale
+            ? `
+          <div style="margin-top: 30px; padding: 15px; background: #f8f9fa; border-left: 3px solid #2563eb; font-size: 12px; color: #666; line-height: 1.6;">
+            ${mentionSpeciale.replace(/\n/g, "<br>")}
+          </div>`
+            : ""
+        }
+      `;
+
+      // Modèle 1 - Classique
+      if (modele === "modele1") {
+        // Récupérer les abréviations des unités
+        const getLigneHTML = (l) => {
+          const des = this.designations.find((d) => d.id == l.designationId);
+          const unite =
+            des && des.uniteId
+              ? this.unites.find((u) => u.id == des.uniteId)
+              : null;
+          const uniteAbrev = unite ? ` (${unite.abreviation})` : "";
+          return `
+      <tr>
+        <td style="padding: 12px; border: 1px solid #d1d5db;">${this.designationLabel(
+          l.designationId
+        ).toUpperCase()}${uniteAbrev}</td>
+        <td style="padding: 12px; border: 1px solid #d1d5db; text-align: center;">${
+          l.quantite
+        }</td>
+        <td style="padding: 12px; border: 1px solid #d1d5db; text-align: right;">${Math.round(
+          l.prix
+        ).toLocaleString("fr-FR")}</td>
+        <td style="padding: 12px; border: 1px solid #d1d5db; text-align: right; font-weight: bold;">${Math.round(
+          l.total
+        ).toLocaleString("fr-FR")}</td>
+      </tr>
+    `;
+        };
+
+        return `
+    <div style="font-family: Arial, sans-serif; padding: 40px; max-width: 800px; margin: 0 auto; background: white; color: #000;">
+      ${enteteHTML}
+      
+      <!-- En-tête -->
+      <div style="border-bottom: 3px solid #2563eb; padding-bottom: 20px; margin-bottom: 30px;">
+        <h1 style="margin: 0; font-size: 32px; color: #2563eb; text-transform: uppercase;">${
+          this.form.type === "proforma" ? "FACTURE PROFORMA" : "FACTURE"
+        }</h1>
+        <p style="margin: 5px 0; font-size: 18px; color: #666; text-transform: uppercase;">N° ${
+          this.form.numero
+        }</p>
+        <p style="margin: 5px 0; color: #666; text-transform: uppercase;">DATE : ${this.helpers.formatDateFrancais(
+          this.form.date
+        )}</p>
       </div>
-    `
-        : ""
-    }
-    ${
-      mentionSpeciale
-        ? `
-      <div style="margin-top: 30px; padding: 15px; background: #f8f9fa; border-left: 3px solid #2563eb; font-size: 12px; color: #666; line-height: 1.6;">
-        ${mentionSpeciale.replace(/\n/g, "<br>")}
+      
+      <!-- Informations client -->
+      <div style="margin-bottom: 30px;">
+        <p style="margin: 5px 0; text-transform: uppercase;"><strong>CLIENT :</strong> ${clientNom.toUpperCase()}</p>
+        ${
+          this.form.objet
+            ? `<p style="margin: 15px 0; font-size: 14px; text-transform: uppercase;"><strong>OBJET :</strong> ${this.form.objet}</p>`
+            : ""
+        }
       </div>
-    `
-        : ""
-    }
+      
+      <!-- Infos proforma -->
+      ${
+        this.form.type === "proforma" &&
+        (this.form.validiteOffre ||
+          this.form.delaisLivraison ||
+          this.form.delaisExecution ||
+          this.form.conditionPaiement)
+          ? `
+        <div style="background: #fef3c7; padding: 15px; border-left: 4px solid #f59e0b; margin-bottom: 20px;">
+          <p style="margin: 0 0 10px 0; font-weight: bold; color: #92400e; text-transform: uppercase;">CONDITIONS DE L'OFFRE</p>
+          ${
+            this.form.validiteOffre
+              ? `<p style="margin: 5px 0; text-transform: uppercase;"><strong>VALIDITÉ :</strong> ${this.form.validiteOffre.toUpperCase()}</p>`
+              : ""
+          }
+          ${
+            this.form.delaisLivraison
+              ? `<p style="margin: 5px 0; text-transform: uppercase;"><strong>DÉLAIS DE LIVRAISON :</strong> ${this.form.delaisLivraison.toUpperCase()}</p>`
+              : ""
+          }
+          ${
+            this.form.delaisExecution
+              ? `<p style="margin: 5px 0; text-transform: uppercase;"><strong>DÉLAIS D'EXÉCUTION :</strong> ${this.form.delaisExecution.toUpperCase()}</p>`
+              : ""
+          }
+          ${
+            this.form.conditionPaiement
+              ? `<p style="margin: 5px 0; text-transform: uppercase;"><strong>CONDITION DE PAIEMENT :</strong> ${this.form.conditionPaiement.toUpperCase()}</p>`
+              : ""
+          }
+        </div>
+      `
+          : ""
+      }
+      
+      ${
+        this.form.garantie
+          ? `<div style="background: #dbeafe; padding: 10px; border-left: 4px solid #2563eb; margin-bottom: 20px; text-transform: uppercase;"><strong>GARANTIE :</strong> ${this.form.garantie.toUpperCase()}</div>`
+          : ""
+      }
+      
+      <!-- Tableau des lignes -->
+      <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
+        <thead>
+          <tr style="background: #f3f4f6;">
+            <th style="border: 1px solid #d1d5db; padding: 12px; text-align: left; text-transform: uppercase;">DÉSIGNATION</th>
+            <th style="border: 1px solid #d1d5db; padding: 12px; text-align: center; width: 80px; text-transform: uppercase;">QTÉ</th>
+            <th style="border: 1px solid #d1d5db; padding: 12px; text-align: right; width: 120px; text-transform: uppercase;">P.U.</th>
+            <th style="border: 1px solid #d1d5db; padding: 12px; text-align: right; width: 120px; text-transform: uppercase;">TOTAL</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${this.form.lignes.map((l) => getLigneHTML(l)).join("")}
+        </tbody>
+      </table>
+      
+      <!-- Totaux -->
+      <div style="text-align: right; margin-top: 30px;">
+        <div style="display: inline-block; min-width: 300px; text-align: left;">
+          <div style="padding: 10px 0; border-bottom: 1px solid #d1d5db; display: flex; justify-content: space-between; text-transform: uppercase;">
+            <span>TOTAL HT :</span>
+            <span style="font-weight: bold;">${Math.round(
+              this.form.totalHT
+            ).toLocaleString("fr-FR")} ${
+          this.devise === "XOF" ? "F CFA" : this.devise
+        }</span>
+          </div>
+          <div style="padding: 10px 0; border-bottom: 1px solid #d1d5db; display: flex; justify-content: space-between; text-transform: uppercase;">
+            <span>TVA :</span>
+            <span style="font-weight: bold; color: #f59e0b;">${Math.round(
+              this.form.totalTVA
+            ).toLocaleString("fr-FR")} ${
+          this.devise === "XOF" ? "F CFA" : this.devise
+        }</span>
+          </div>
+          <div style="padding: 15px 0; border-top: 2px solid #000; display: flex; justify-content: space-between; font-size: 20px; text-transform: uppercase;">
+            <span style="font-weight: bold;">TOTAL TTC :</span>
+            <span style="font-weight: bold; color: #2563eb;">${Math.round(
+              this.form.totalTTC
+            ).toLocaleString("fr-FR")} ${
+          this.devise === "XOF" ? "F CFA" : this.devise
+        }</span>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Montant en lettres -->
+      <div style="margin-top: 30px; padding: 15px; background: #f3f4f6; border-left: 4px solid #2563eb;">
+        <p style="margin: 0; font-weight: bold; text-transform: uppercase;">ARRÊTÉ LA PRÉSENTE FACTURE À LA SOMME DE :</p>
+        <p style="margin: 5px 0 0 0; font-size: 14px; font-weight: bold;">${this.helpers.nombreEnLettres(
+          this.form.totalTTC,
+          this.devise
+        )}</p>
+      </div>
+      
+      <!-- Signature -->
+      <div style="margin-top: 60px; text-align: right;">
+        <p style="margin: 0; font-weight: bold; text-transform: uppercase;">LE DIRECTEUR</p>
+      </div>
+      
+      ${piedPageHTML}
+    </div>
   `;
+      }
+
+      // Modèle 2 - Moderne
+      if (modele === "modele2") {
+        // Récupérer les abréviations des unités
+        const getLigneHTML = (l) => {
+          const des = this.designations.find((d) => d.id == l.designationId);
+          const unite =
+            des && des.uniteId
+              ? this.unites.find((u) => u.id == des.uniteId)
+              : null;
+          const uniteAbrev = unite ? ` (${unite.abreviation})` : "";
+          return `
+            <tr style="background: ${
+              this.form.lignes.indexOf(l) % 2 === 0 ? "#f8f9fa" : "white"
+            };">
+              <td style="padding: 12px;">${this.designationLabel(
+                l.designationId
+              ).toUpperCase()}${uniteAbrev}</td>
+              <td style="padding: 12px; text-align: center;">${l.quantite}</td>
+              <td style="padding: 12px; text-align: right;">${Math.round(
+                l.prix
+              ).toLocaleString("fr-FR")}</td>
+              <td style="padding: 12px; text-align: right; font-weight: bold; color: #667eea;">${Math.round(
+                l.total
+              ).toLocaleString("fr-FR")}</td>
+            </tr>
+          `;
+        };
+
+        return `
+          <div style="font-family: 'Segoe UI', Tahoma, sans-serif; padding: 50px; max-width: 850px; margin: 0 auto; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #000;">
+            <div style="background: white; padding: 40px; border-radius: 15px; box-shadow: 0 10px 40px rgba(0,0,0,0.1);">
+              ${enteteHTML}
+              
+              <!-- En-tête moderne -->
+              <div style="text-align: center; margin-bottom: 40px;">
+                <div style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 40px; border-radius: 50px; margin-bottom: 20px;">
+                  <h1 style="margin: 0; font-size: 28px; letter-spacing: 2px; text-transform: uppercase;">${
+                    this.form.type === "proforma" ? "PROFORMA" : "FACTURE"
+                  }</h1>
+                </div>
+                <p style="margin: 10px 0; font-size: 24px; color: #667eea; font-weight: bold; text-transform: uppercase;">№ ${
+                  this.form.numero
+                }</p>
+                <p style="margin: 5px 0; color: #666; font-size: 14px; text-transform: uppercase;">📅 ${this.helpers.formatDateFrancais(
+                  this.form.date
+                )}</p>
+              </div>
+              
+              <!-- Info client avec style moderne -->
+              <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 30px; border-left: 5px solid #667eea;">
+                <p style="margin: 5px 0; font-size: 16px; text-transform: uppercase;"><strong style="color: #667eea;">👤 CLIENT :</strong> ${clientNom.toUpperCase()}</p>
+                ${
+                  this.form.objet
+                    ? `<p style="margin: 15px 0; font-size: 14px; text-transform: uppercase;"><strong style="color: #667eea;">📋 OBJET :</strong> ${this.form.objet}</p>`
+                    : ""
+                }
+              </div>
+              
+              ${
+                this.form.type === "proforma" &&
+                (this.form.validiteOffre ||
+                  this.form.delaisLivraison ||
+                  this.form.delaisExecution ||
+                  this.form.conditionPaiement)
+                  ? `
+                <div style="background: linear-gradient(135deg, #ffeaa7 0%, #fdcb6e 100%); padding: 20px; border-radius: 10px; margin-bottom: 25px;">
+                  <p style="margin: 0 0 10px 0; font-weight: bold; color: #2d3436; text-transform: uppercase;">⚡ CONDITIONS</p>
+                  ${
+                    this.form.validiteOffre
+                      ? `<p style="margin: 5px 0; text-transform: uppercase;">✓ VALIDITÉ : ${this.form.validiteOffre.toUpperCase()}</p>`
+                      : ""
+                  }
+                  ${
+                    this.form.delaisLivraison
+                      ? `<p style="margin: 5px 0; text-transform: uppercase;">✓ LIVRAISON : ${this.form.delaisLivraison.toUpperCase()}</p>`
+                      : ""
+                  }
+                  ${
+                    this.form.delaisExecution
+                      ? `<p style="margin: 5px 0; text-transform: uppercase;">✓ EXÉCUTION : ${this.form.delaisExecution.toUpperCase()}</p>`
+                      : ""
+                  }
+                  ${
+                    this.form.conditionPaiement
+                      ? `<p style="margin: 5px 0; text-transform: uppercase;">✓ PAIEMENT : ${this.form.conditionPaiement.toUpperCase()}</p>`
+                      : ""
+                  }
+                </div>
+              `
+                  : ""
+              }
+              
+              ${
+                this.form.garantie
+                  ? `<div style="background: #e3f2fd; padding: 15px; border-radius: 10px; margin-bottom: 25px; border-left: 5px solid #2196f3; text-transform: uppercase;"><strong>🛡️ GARANTIE :</strong> ${this.form.garantie.toUpperCase()}</div>`
+                  : ""
+              }
+              
+              <!-- Tableau moderne -->
+              <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px; border-radius: 10px; overflow: hidden;">
+                <thead>
+                  <tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                    <th style="padding: 15px; text-align: left; text-transform: uppercase;">DÉSIGNATION</th>
+                    <th style="padding: 15px; text-align: center; width: 80px; text-transform: uppercase;">QTÉ</th>
+                    <th style="padding: 15px; text-align: right; width: 120px; text-transform: uppercase;">P.U.</th>
+                    <th style="padding: 15px; text-align: right; width: 120px; text-transform: uppercase;">TOTAL</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${this.form.lignes.map((l) => getLigneHTML(l)).join("")}
+                </tbody>
+              </table>
+              
+              <!-- Totaux modernes -->
+              <div style="text-align: right; margin-top: 30px;">
+                <div style="display: inline-block; min-width: 350px; background: #f8f9fa; padding: 25px; border-radius: 15px;">
+                  <div style="padding: 10px 0; display: flex; justify-content: space-between; font-size: 16px; text-transform: uppercase;">
+                    <span>TOTAL HT</span>
+                    <span style="font-weight: bold;">${Math.round(
+                      this.form.totalHT
+                    ).toLocaleString("fr-FR")} ${
+          this.devise === "XOF" ? "F CFA" : this.devise
+        }</span>
+                  </div>
+                  <div style="padding: 10px 0; display: flex; justify-content: space-between; font-size: 16px; border-bottom: 2px dashed #ddd; text-transform: uppercase;">
+                    <span>TVA</span>
+                    <span style="font-weight: bold; color: #f59e0b;">${Math.round(
+                      this.form.totalTVA
+                    ).toLocaleString("fr-FR")} ${
+          this.devise === "XOF" ? "F CFA" : this.devise
+        }</span>
+                  </div>
+                  <div style="padding: 20px 0; display: flex; justify-content: space-between; font-size: 24px; text-transform: uppercase;">
+                    <span style="font-weight: bold;">TOTAL TTC</span>
+                    <span style="font-weight: bold; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">${Math.round(
+                      this.form.totalTTC
+                    ).toLocaleString("fr-FR")} ${
+          this.devise === "XOF" ? "F CFA" : this.devise
+        }</span>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Montant en lettres -->
+              <div style="margin-top: 30px; padding: 15px; background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); border-radius: 10px; border-left: 4px solid #667eea;">
+                <p style="margin: 0; font-weight: bold; text-transform: uppercase;">ARRÊTÉ LA PRÉSENTE FACTURE À LA SOMME DE :</p>
+                <p style="margin: 5px 0 0 0; font-size: 14px; font-weight: bold;">${this.helpers.nombreEnLettres(
+                  this.form.totalTTC,
+                  this.devise
+                )}</p>
+              </div>
+              
+              <!-- Signature -->
+              <div style="margin-top: 60px; text-align: right;">
+                <p style="margin: 0; font-weight: bold; text-transform: uppercase; color: #667eea;">LE DIRECTEUR</p>
+              </div>
+              
+              ${piedPageHTML}
+            </div>
+          </div>
+        `;
+      }
+
+      // Modèle 3 - Minimaliste
+      if (modele === "modele3") {
+        // Récupérer les abréviations des unités
+        const getLigneHTML = (l) => {
+          const des = this.designations.find((d) => d.id == l.designationId);
+          const unite =
+            des && des.uniteId
+              ? this.unites.find((u) => u.id == des.uniteId)
+              : null;
+          const uniteAbrev = unite ? ` (${unite.abreviation})` : "";
+          return `
+      <tr style="border-bottom: 1px solid #ddd;">
+        <td style="padding: 12px 0;">${this.designationLabel(
+          l.designationId
+        ).toUpperCase()}${uniteAbrev}</td>
+        <td style="padding: 12px 0; text-align: center;">${l.quantite}</td>
+        <td style="padding: 12px 0; text-align: right;">${Math.round(
+          l.prix
+        ).toLocaleString("fr-FR")}</td>
+        <td style="padding: 12px 0; text-align: right;">${Math.round(
+          l.total
+        ).toLocaleString("fr-FR")}</td>
+      </tr>
+    `;
+        };
+
+        return `
+    <div style="font-family: 'Courier New', monospace; padding: 60px 40px; max-width: 750px; margin: 0 auto; background: white; color: #000;">
+      ${enteteHTML}
+      
+      <!-- En-tête minimaliste -->
+      <div style="border-bottom: 1px solid #000; padding-bottom: 10px; margin-bottom: 40px;">
+        <h1 style="margin: 0; font-size: 24px; font-weight: normal; letter-spacing: 5px; text-transform: uppercase;">${
+          this.form.type === "proforma" ? "PROFORMA" : "INVOICE"
+        }</h1>
+      </div>
+      
+      <!-- Infos essentielles -->
+      <div style="margin-bottom: 40px; line-height: 1.8;">
+        <p style="margin: 5px 0; text-transform: uppercase;">N° ${
+          this.form.numero
+        }</p>
+        <p style="margin: 5px 0; text-transform: uppercase;">DATE: ${this.helpers.formatDateFrancais(
+          this.form.date
+        )}</p>
+        <p style="margin: 5px 0; text-transform: uppercase;">CLIENT: ${clientNom.toUpperCase()}</p>
+        ${
+          this.form.objet
+            ? `<p style="margin: 15px 0; text-transform: uppercase;">OBJET: ${this.form.objet}</p>`
+            : ""
+        }
+      </div>
+      
+      ${
+        this.form.type === "proforma" &&
+        (this.form.validiteOffre ||
+          this.form.delaisLivraison ||
+          this.form.delaisExecution ||
+          this.form.conditionPaiement)
+          ? `
+        <div style="border-left: 2px solid #000; padding-left: 15px; margin-bottom: 30px; line-height: 1.8;">
+          ${
+            this.form.validiteOffre
+              ? `<p style="margin: 5px 0; text-transform: uppercase;">VALIDITÉ: ${this.form.validiteOffre.toUpperCase()}</p>`
+              : ""
+          }
+          ${
+            this.form.delaisLivraison
+              ? `<p style="margin: 5px 0; text-transform: uppercase;">LIVRAISON: ${this.form.delaisLivraison.toUpperCase()}</p>`
+              : ""
+          }
+          ${
+            this.form.delaisExecution
+              ? `<p style="margin: 5px 0; text-transform: uppercase;">EXÉCUTION: ${this.form.delaisExecution.toUpperCase()}</p>`
+              : ""
+          }
+          ${
+            this.form.conditionPaiement
+              ? `<p style="margin: 5px 0; text-transform: uppercase;">PAIEMENT: ${this.form.conditionPaiement.toUpperCase()}</p>`
+              : ""
+          }
+        </div>
+      `
+          : ""
+      }
+      
+      ${
+        this.form.garantie
+          ? `<div style="border-left: 2px solid #000; padding-left: 15px; margin-bottom: 30px;"><p style="margin: 0; text-transform: uppercase;">GARANTIE: ${this.form.garantie.toUpperCase()}</p></div>`
+          : ""
+      }
+      
+      <!-- Tableau minimaliste -->
+      <table style="width: 100%; border-collapse: collapse; margin-bottom: 40px;">
+        <thead>
+          <tr style="border-bottom: 2px solid #000;">
+            <th style="padding: 10px 0; text-align: left; font-weight: normal; text-transform: uppercase;">DÉSIGNATION</th>
+            <th style="padding: 10px 0; text-align: center; width: 60px; font-weight: normal; text-transform: uppercase;">QTÉ</th>
+            <th style="padding: 10px 0; text-align: right; width: 100px; font-weight: normal; text-transform: uppercase;">P.U.</th>
+            <th style="padding: 10px 0; text-align: right; width: 100px; font-weight: normal; text-transform: uppercase;">TOTAL</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${this.form.lignes.map((l) => getLigneHTML(l)).join("")}
+        </tbody>
+      </table>
+      
+      <!-- Totaux minimalistes -->
+      <div style="text-align: right; border-top: 2px solid #000; padding-top: 20px;">
+        <div style="display: inline-block; min-width: 300px; text-align: left; line-height: 2;">
+          <div style="display: flex; justify-content: space-between; text-transform: uppercase;">
+            <span>TOTAL HT:</span>
+            <span>${Math.round(this.form.totalHT).toLocaleString("fr-FR")} ${
+          this.devise === "XOF" ? "F CFA" : this.devise
+        }</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; text-transform: uppercase;">
+            <span>TVA:</span>
+            <span>${Math.round(this.form.totalTVA).toLocaleString("fr-FR")} ${
+          this.devise === "XOF" ? "F CFA" : this.devise
+        }</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin-top: 10px; padding-top: 10px; border-top: 1px solid #000; font-size: 18px; text-transform: uppercase;">
+            <span style="font-weight: bold;">TOTAL TTC:</span>
+            <span style="font-weight: bold;">${Math.round(
+              this.form.totalTTC
+            ).toLocaleString("fr-FR")} ${
+          this.devise === "XOF" ? "F CFA" : this.devise
+        }</span>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Montant en lettres -->
+      <div style="margin-top: 30px; padding: 15px; background: #f3f4f6; border-left: 2px solid #000;">
+        <p style="margin: 0; font-weight: bold; text-transform: uppercase;">ARRÊTÉ LA PRÉSENTE FACTURE À LA SOMME DE :</p>
+        <p style="margin: 5px 0 0 0; font-size: 12px; font-weight: bold;">${this.helpers.nombreEnLettres(
+          this.form.totalTTC,
+          this.devise
+        )}</p>
+      </div>
+      
+      <!-- Signature -->
+      <div style="margin-top: 60px; text-align: right;">
+        <p style="margin: 0; font-weight: bold; text-transform: uppercase;">LE DIRECTEUR</p>
+      </div>
+      
+      ${piedPageHTML}
+    </div>
+  `;
+      }
+
+      return "";
+    },
+    async showBonLivraisonPreview() {
+      // Validation rapide
+      if (!this.form.clientId) {
+        this.error = "Veuillez sélectionner un client";
+        return;
+      }
+      if (this.form.lignes.length === 0) {
+        this.error = "Veuillez ajouter au moins une ligne";
+        return;
+      }
+      this.error = "";
+
+      // Générer le HTML du bon de livraison
+      this.bonLivraisonHTML = await this.getBonLivraisonHTML();
+      this.showBonLivraison = true;
+    },
+    hideBonLivraison() {
+      this.showBonLivraison = false;
+    },
+    async getBonLivraisonHTML() {
+      // Récupérer le modèle choisi dans les settings
+      const settings = await window.settingsStore.get();
+      const modele = (settings && settings.modeleBonLivraison) || "modele1";
+      const logoEntete = (settings && settings.logoEntete) || "";
+      const logoPiedPage = (settings && settings.logoPiedPage) || "";
+
+      const client = this.clients.find((c) => c.id == this.form.clientId);
+      const clientNom = client ? client.nom : "--";
+
+      // Utiliser directement les URLs avec tailles ajustées
+      const enteteHTML = settings.logoEntete
+        ? `<div style="text-align: center; margin-bottom: 20px;">
+            <img src="${settings.logoEntete}" alt="Logo" style="max-height: 100px; width: auto; object-fit: contain;" crossorigin="anonymous" onerror="console.error('Erreur chargement logo entete')">
+          </div>`
+        : "";
+
+      const piedPageHTML = settings.logoPiedPage
+        ? `<div style="text-align: center; margin-top: 40px; padding-top: 20px;">
+            <img src="${settings.logoPiedPage}" alt="Logo pied de page" style="max-height: 80px; width: auto; object-fit: contain;" crossorigin="anonymous" onerror="console.error('Erreur chargement logo pied')">
+          </div>`
+        : "";
+
+      // Fonction pour générer une ligne du tableau
+      const getLigneHTML = (l, idx) => {
+        const des = this.designations.find((d) => d.id == l.designationId);
+        const unite =
+          des && des.uniteId
+            ? this.unites.find((u) => u.id == des.uniteId)
+            : null;
+        const uniteAbrev = unite ? ` (${unite.abreviation})` : "";
+
+        if (modele === "modele1") {
+          return `
+        <tr>
+          <td style="padding: 12px; border: 1px solid #d1d5db;">${this.designationLabel(
+            l.designationId
+          ).toUpperCase()}${uniteAbrev}</td>
+          <td style="padding: 12px; border: 1px solid #d1d5db; text-align: center;">${
+            l.quantite
+          }</td>
+        </tr>
+      `;
+        } else if (modele === "modele2") {
+          return `
+        <tr style="background: ${idx % 2 === 0 ? "#f8f9fa" : "white"};">
+          <td style="padding: 12px;">${this.designationLabel(
+            l.designationId
+          ).toUpperCase()}${uniteAbrev}</td>
+          <td style="padding: 12px; text-align: center;">${l.quantite}</td>
+        </tr>
+      `;
+        } else {
+          return `
+        <tr style="border-bottom: 1px solid #ddd;">
+          <td style="padding: 12px 0;">${this.designationLabel(
+            l.designationId
+          ).toUpperCase()}${uniteAbrev}</td>
+          <td style="padding: 12px 0; text-align: center;">${l.quantite}</td>
+        </tr>
+      `;
+        }
+      };
 
       // Modèle 1 - Classique
       if (modele === "modele1") {
@@ -469,126 +1067,45 @@ window.FacturesPage = {
         
         <!-- En-tête -->
         <div style="border-bottom: 3px solid #2563eb; padding-bottom: 20px; margin-bottom: 30px;">
-          <h1 style="margin: 0; font-size: 32px; color: #2563eb;">${
-            this.form.type === "proforma" ? "FACTURE PROFORMA" : "FACTURE"
-          }</h1>
-          <p style="margin: 5px 0; font-size: 18px; color: #666;">N° ${
+          <h1 style="margin: 0; font-size: 32px; color: #2563eb; text-transform: uppercase;">BON DE LIVRAISON</h1>
+          <p style="margin: 5px 0; font-size: 18px; color: #666; text-transform: uppercase;">N° ${
             this.form.numero
           }</p>
-          <p style="margin: 5px 0; color: #666;">Date : ${this.form.date}</p>
+          <p style="margin: 5px 0; color: #666; text-transform: uppercase;">DATE : ${this.helpers.formatDateFrancais(
+            this.form.date
+          )}</p>
         </div>
         
         <!-- Informations client -->
         <div style="margin-bottom: 30px;">
-          <p style="margin: 5px 0;"><strong>Client :</strong> ${clientNom}</p>
+          <p style="margin: 5px 0; text-transform: uppercase;"><strong>CLIENT :</strong> ${clientNom.toUpperCase()}</p>
           ${
             this.form.objet
-              ? `<p style="margin: 15px 0; font-size: 14px;"><strong>OBJET :</strong> ${this.form.objet}</p>`
+              ? `<p style="margin: 15px 0; font-size: 14px; text-transform: uppercase;"><strong>OBJET :</strong> ${this.form.objet}</p>`
               : ""
           }
         </div>
-        
-        <!-- Infos proforma -->
-        ${
-          this.form.type === "proforma" &&
-          (this.form.validiteOffre ||
-            this.form.delaisLivraison ||
-            this.form.delaisExecution ||
-            this.form.conditionPaiement)
-            ? `
-          <div style="background: #fef3c7; padding: 15px; border-left: 4px solid #f59e0b; margin-bottom: 20px;">
-            <p style="margin: 0 0 10px 0; font-weight: bold; color: #92400e;">Conditions de l'offre</p>
-            ${
-              this.form.validiteOffre
-                ? `<p style="margin: 5px 0;"><strong>Validité :</strong> ${this.form.validiteOffre}</p>`
-                : ""
-            }
-            ${
-              this.form.delaisLivraison
-                ? `<p style="margin: 5px 0;"><strong>Délais de livraison :</strong> ${this.form.delaisLivraison}</p>`
-                : ""
-            }
-            ${
-              this.form.delaisExecution
-                ? `<p style="margin: 5px 0;"><strong>Délais d'exécution :</strong> ${this.form.delaisExecution}</p>`
-                : ""
-            }
-            ${
-              this.form.conditionPaiement
-                ? `<p style="margin: 5px 0;"><strong>Condition de paiement :</strong> ${this.form.conditionPaiement}</p>`
-                : ""
-            }
-          </div>
-        `
-            : ""
-        }
-        
-        ${
-          this.form.garantie
-            ? `<div style="background: #dbeafe; padding: 10px; border-left: 4px solid #2563eb; margin-bottom: 20px;"><strong>Garantie :</strong> ${this.form.garantie}</div>`
-            : ""
-        }
         
         <!-- Tableau des lignes -->
         <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
           <thead>
             <tr style="background: #f3f4f6;">
-              <th style="border: 1px solid #d1d5db; padding: 12px; text-align: left;">Désignation</th>
-              <th style="border: 1px solid #d1d5db; padding: 12px; text-align: center; width: 80px;">Qté</th>
-              <th style="border: 1px solid #d1d5db; padding: 12px; text-align: right; width: 120px;">Prix unit.</th>
-              <th style="border: 1px solid #d1d5db; padding: 12px; text-align: right; width: 120px;">Total</th>
+              <th style="border: 1px solid #d1d5db; padding: 12px; text-align: left; text-transform: uppercase;">DÉSIGNATION</th>
+              <th style="border: 1px solid #d1d5db; padding: 12px; text-align: center; width: 150px; text-transform: uppercase;">QUANTITÉ</th>
             </tr>
           </thead>
           <tbody>
-            ${this.form.lignes
-              .map(
-                (l) => `
-              <tr>
-                <td style="border: 1px solid #d1d5db; padding: 10px;">${this.designationLabel(
-                  l.designationId
-                )}</td>
-                <td style="border: 1px solid #d1d5db; padding: 10px; text-align: center;">${
-                  l.quantite
-                }</td>
-                <td style="border: 1px solid #d1d5db; padding: 10px; text-align: right;">${this.helpers.formatMontant(
-                  l.prix,
-                  this.devise
-                )}</td>
-                <td style="border: 1px solid #d1d5db; padding: 10px; text-align: right; font-weight: bold;">${this.helpers.formatMontant(
-                  l.total,
-                  this.devise
-                )}</td>
-              </tr>
-            `
-              )
-              .join("")}
+            ${this.form.lignes.map((l, idx) => getLigneHTML(l, idx)).join("")}
           </tbody>
         </table>
         
-        <!-- Totaux -->
-        <div style="text-align: right; margin-top: 30px;">
-          <div style="display: inline-block; min-width: 300px; text-align: left;">
-            <div style="padding: 10px 0; border-bottom: 1px solid #d1d5db; display: flex; justify-content: space-between;">
-              <span>Total HT :</span>
-              <span style="font-weight: bold;">${this.helpers.formatMontant(
-                this.form.totalHT,
-                this.devise
-              )}</span>
-            </div>
-            <div style="padding: 10px 0; border-bottom: 1px solid #d1d5db; display: flex; justify-content: space-between;">
-              <span>TVA :</span>
-              <span style="font-weight: bold; color: #f59e0b;">${this.helpers.formatMontant(
-                this.form.totalTVA,
-                this.devise
-              )}</span>
-            </div>
-            <div style="padding: 15px 0; border-top: 2px solid #000; display: flex; justify-content: space-between; font-size: 20px;">
-              <span style="font-weight: bold;">Total TTC :</span>
-              <span style="font-weight: bold; color: #2563eb;">${this.helpers.formatMontant(
-                this.form.totalTTC,
-                this.devise
-              )}</span>
-            </div>
+        <!-- Signatures -->
+        <div style="margin-top: 80px; display: flex; justify-content: space-between;">
+          <div style="text-align: center; width: 45%;">
+            <p style="margin: 0; font-weight: bold; text-transform: uppercase;">LE LIVREUR</p>
+          </div>
+          <div style="text-align: center; width: 45%;">
+            <p style="margin: 0; font-weight: bold; text-transform: uppercase;">LE CLIENT</p>
           </div>
         </div>
         
@@ -607,128 +1124,46 @@ window.FacturesPage = {
           <!-- En-tête moderne -->
           <div style="text-align: center; margin-bottom: 40px;">
             <div style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 40px; border-radius: 50px; margin-bottom: 20px;">
-              <h1 style="margin: 0; font-size: 28px; letter-spacing: 2px;">${
-                this.form.type === "proforma" ? "PROFORMA" : "FACTURE"
-              }</h1>
+              <h1 style="margin: 0; font-size: 28px; letter-spacing: 2px; text-transform: uppercase;">BON DE LIVRAISON</h1>
             </div>
-            <p style="margin: 10px 0; font-size: 24px; color: #667eea; font-weight: bold;">№ ${
+            <p style="margin: 10px 0; font-size: 24px; color: #667eea; font-weight: bold; text-transform: uppercase;">№ ${
               this.form.numero
             }</p>
-            <p style="margin: 5px 0; color: #666; font-size: 14px;">📅 ${
+            <p style="margin: 5px 0; color: #666; font-size: 14px; text-transform: uppercase;">📅 ${this.helpers.formatDateFrancais(
               this.form.date
-            }</p>
+            )}</p>
           </div>
           
-          <!-- Info client avec style moderne -->
+          <!-- Info client -->
           <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin-bottom: 30px; border-left: 5px solid #667eea;">
-            <p style="margin: 5px 0; font-size: 16px;"><strong style="color: #667eea;">👤 Client :</strong> ${clientNom}</p>
+            <p style="margin: 5px 0; font-size: 16px; text-transform: uppercase;"><strong style="color: #667eea;">👤 CLIENT :</strong> ${clientNom.toUpperCase()}</p>
             ${
               this.form.objet
-                ? `<p style="margin: 15px 0; font-size: 14px;"><strong style="color: #667eea;">📋 OBJET :</strong> ${this.form.objet}</p>`
+                ? `<p style="margin: 15px 0; font-size: 14px; text-transform: uppercase;"><strong style="color: #667eea;">📋 OBJET :</strong> ${this.form.objet}</p>`
                 : ""
             }
           </div>
-          
-          ${
-            this.form.type === "proforma" &&
-            (this.form.validiteOffre ||
-              this.form.delaisLivraison ||
-              this.form.delaisExecution ||
-              this.form.conditionPaiement)
-              ? `
-            <div style="background: linear-gradient(135deg, #ffeaa7 0%, #fdcb6e 100%); padding: 20px; border-radius: 10px; margin-bottom: 25px;">
-              <p style="margin: 0 0 10px 0; font-weight: bold; color: #2d3436;">⚡ Conditions</p>
-              ${
-                this.form.validiteOffre
-                  ? `<p style="margin: 5px 0;">✓ Validité : ${this.form.validiteOffre}</p>`
-                  : ""
-              }
-              ${
-                this.form.delaisLivraison
-                  ? `<p style="margin: 5px 0;">✓ Livraison : ${this.form.delaisLivraison}</p>`
-                  : ""
-              }
-              ${
-                this.form.delaisExecution
-                  ? `<p style="margin: 5px 0;">✓ Exécution : ${this.form.delaisExecution}</p>`
-                  : ""
-              }
-              ${
-                this.form.conditionPaiement
-                  ? `<p style="margin: 5px 0;">✓ Paiement : ${this.form.conditionPaiement}</p>`
-                  : ""
-              }
-            </div>
-          `
-              : ""
-          }
-          
-          ${
-            this.form.garantie
-              ? `<div style="background: #e3f2fd; padding: 15px; border-radius: 10px; margin-bottom: 25px; border-left: 5px solid #2196f3;"><strong>🛡️ Garantie :</strong> ${this.form.garantie}</div>`
-              : ""
-          }
           
           <!-- Tableau moderne -->
           <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px; border-radius: 10px; overflow: hidden;">
             <thead>
               <tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
-                <th style="padding: 15px; text-align: left;">Désignation</th>
-                <th style="padding: 15px; text-align: center; width: 80px;">Qté</th>
-                <th style="padding: 15px; text-align: right; width: 120px;">Prix</th>
-                <th style="padding: 15px; text-align: right; width: 120px;">Total</th>
+                <th style="padding: 15px; text-align: left; text-transform: uppercase;">DÉSIGNATION</th>
+                <th style="padding: 15px; text-align: center; width: 150px; text-transform: uppercase;">QUANTITÉ</th>
               </tr>
             </thead>
             <tbody>
-              ${this.form.lignes
-                .map(
-                  (l, idx) => `
-                <tr style="background: ${idx % 2 === 0 ? "#f8f9fa" : "white"};">
-                  <td style="padding: 12px;">${this.designationLabel(
-                    l.designationId
-                  )}</td>
-                  <td style="padding: 12px; text-align: center;">${
-                    l.quantite
-                  }</td>
-                  <td style="padding: 12px; text-align: right;">${this.helpers.formatMontant(
-                    l.prix,
-                    this.devise
-                  )}</td>
-                  <td style="padding: 12px; text-align: right; font-weight: bold; color: #667eea;">${this.helpers.formatMontant(
-                    l.total,
-                    this.devise
-                  )}</td>
-                </tr>
-              `
-                )
-                .join("")}
+              ${this.form.lignes.map((l, idx) => getLigneHTML(l, idx)).join("")}
             </tbody>
           </table>
           
-          <!-- Totaux modernes -->
-          <div style="text-align: right; margin-top: 30px;">
-            <div style="display: inline-block; min-width: 350px; background: #f8f9fa; padding: 25px; border-radius: 15px;">
-              <div style="padding: 10px 0; display: flex; justify-content: space-between; font-size: 16px;">
-                <span>Total HT</span>
-                <span style="font-weight: bold;">${this.helpers.formatMontant(
-                  this.form.totalHT,
-                  this.devise
-                )}</span>
-              </div>
-              <div style="padding: 10px 0; display: flex; justify-content: space-between; font-size: 16px; border-bottom: 2px dashed #ddd;">
-                <span>TVA</span>
-                <span style="font-weight: bold; color: #f59e0b;">${this.helpers.formatMontant(
-                  this.form.totalTVA,
-                  this.devise
-                )}</span>
-              </div>
-              <div style="padding: 20px 0; display: flex; justify-content: space-between; font-size: 24px;">
-                <span style="font-weight: bold;">Total TTC</span>
-                <span style="font-weight: bold; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">${this.helpers.formatMontant(
-                  this.form.totalTTC,
-                  this.devise
-                )}</span>
-              </div>
+          <!-- Signatures -->
+          <div style="margin-top: 80px; display: flex; justify-content: space-between;">
+            <div style="text-align: center; width: 45%;">
+              <p style="margin: 0; font-weight: bold; text-transform: uppercase; color: #667eea;">LE LIVREUR</p>
+            </div>
+            <div style="text-align: center; width: 45%;">
+              <p style="margin: 0; font-weight: bold; text-transform: uppercase; color: #667eea;">LE CLIENT</p>
             </div>
           </div>
           
@@ -746,122 +1181,45 @@ window.FacturesPage = {
         
         <!-- En-tête minimaliste -->
         <div style="border-bottom: 1px solid #000; padding-bottom: 10px; margin-bottom: 40px;">
-          <h1 style="margin: 0; font-size: 24px; font-weight: normal; letter-spacing: 5px;">${
-            this.form.type === "proforma" ? "PROFORMA" : "INVOICE"
-          }</h1>
+          <h1 style="margin: 0; font-size: 24px; font-weight: normal; letter-spacing: 5px; text-transform: uppercase;">BON DE LIVRAISON</h1>
         </div>
         
         <!-- Infos essentielles -->
         <div style="margin-bottom: 40px; line-height: 1.8;">
-          <p style="margin: 5px 0;">N° ${this.form.numero}</p>
-          <p style="margin: 5px 0;">Date: ${this.form.date}</p>
-          <p style="margin: 5px 0;">Client: ${clientNom}</p>
+          <p style="margin: 5px 0; text-transform: uppercase;">N° ${
+            this.form.numero
+          }</p>
+          <p style="margin: 5px 0; text-transform: uppercase;">DATE: ${this.helpers.formatDateFrancais(
+            this.form.date
+          )}</p>
+          <p style="margin: 5px 0; text-transform: uppercase;">CLIENT: ${clientNom.toUpperCase()}</p>
           ${
             this.form.objet
-              ? `<p style="margin: 15px 0; text-transform: uppercase;">${this.form.objet}</p>`
+              ? `<p style="margin: 15px 0; text-transform: uppercase;">OBJET: ${this.form.objet}</p>`
               : ""
           }
         </div>
-        
-        ${
-          this.form.type === "proforma" &&
-          (this.form.validiteOffre ||
-            this.form.delaisLivraison ||
-            this.form.delaisExecution ||
-            this.form.conditionPaiement)
-            ? `
-          <div style="border-left: 2px solid #000; padding-left: 15px; margin-bottom: 30px; line-height: 1.8;">
-            ${
-              this.form.validiteOffre
-                ? `<p style="margin: 5px 0;">Validité: ${this.form.validiteOffre}</p>`
-                : ""
-            }
-            ${
-              this.form.delaisLivraison
-                ? `<p style="margin: 5px 0;">Livraison: ${this.form.delaisLivraison}</p>`
-                : ""
-            }
-            ${
-              this.form.delaisExecution
-                ? `<p style="margin: 5px 0;">Exécution: ${this.form.delaisExecution}</p>`
-                : ""
-            }
-            ${
-              this.form.conditionPaiement
-                ? `<p style="margin: 5px 0;">Paiement: ${this.form.conditionPaiement}</p>`
-                : ""
-            }
-          </div>
-        `
-            : ""
-        }
-        
-        ${
-          this.form.garantie
-            ? `<div style="border-left: 2px solid #000; padding-left: 15px; margin-bottom: 30px;"><p style="margin: 0;">Garantie: ${this.form.garantie}</p></div>`
-            : ""
-        }
         
         <!-- Tableau minimaliste -->
         <table style="width: 100%; border-collapse: collapse; margin-bottom: 40px;">
           <thead>
             <tr style="border-bottom: 2px solid #000;">
-              <th style="padding: 10px 0; text-align: left; font-weight: normal;">Item</th>
-              <th style="padding: 10px 0; text-align: center; width: 60px; font-weight: normal;">Qty</th>
-              <th style="padding: 10px 0; text-align: right; width: 100px; font-weight: normal;">Price</th>
-              <th style="padding: 10px 0; text-align: right; width: 100px; font-weight: normal;">Amount</th>
+              <th style="padding: 10px 0; text-align: left; font-weight: normal; text-transform: uppercase;">DÉSIGNATION</th>
+              <th style="padding: 10px 0; text-align: center; width: 150px; font-weight: normal; text-transform: uppercase;">QUANTITÉ</th>
             </tr>
           </thead>
           <tbody>
-            ${this.form.lignes
-              .map(
-                (l) => `
-              <tr style="border-bottom: 1px solid #ddd;">
-                <td style="padding: 12px 0;">${this.designationLabel(
-                  l.designationId
-                )}</td>
-                <td style="padding: 12px 0; text-align: center;">${
-                  l.quantite
-                }</td>
-                <td style="padding: 12px 0; text-align: right;">${this.helpers.formatMontant(
-                  l.prix,
-                  this.devise
-                )}</td>
-                <td style="padding: 12px 0; text-align: right;">${this.helpers.formatMontant(
-                  l.total,
-                  this.devise
-                )}</td>
-              </tr>
-            `
-              )
-              .join("")}
+            ${this.form.lignes.map((l, idx) => getLigneHTML(l, idx)).join("")}
           </tbody>
         </table>
         
-        <!-- Totaux minimalistes -->
-        <div style="text-align: right; border-top: 2px solid #000; padding-top: 20px;">
-          <div style="display: inline-block; min-width: 300px; text-align: left; line-height: 2;">
-            <div style="display: flex; justify-content: space-between;">
-              <span>Subtotal:</span>
-              <span>${this.helpers.formatMontant(
-                this.form.totalHT,
-                this.devise
-              )}</span>
-            </div>
-            <div style="display: flex; justify-content: space-between;">
-              <span>Tax:</span>
-              <span>${this.helpers.formatMontant(
-                this.form.totalTVA,
-                this.devise
-              )}</span>
-            </div>
-            <div style="display: flex; justify-content: space-between; margin-top: 10px; padding-top: 10px; border-top: 1px solid #000; font-size: 18px;">
-              <span style="font-weight: bold;">TOTAL:</span>
-              <span style="font-weight: bold;">${this.helpers.formatMontant(
-                this.form.totalTTC,
-                this.devise
-              )}</span>
-            </div>
+        <!-- Signatures -->
+        <div style="margin-top: 80px; display: flex; justify-content: space-between;">
+          <div style="text-align: center; width: 45%;">
+            <p style="margin: 0; font-weight: bold; text-transform: uppercase;">LE LIVREUR</p>
+          </div>
+          <div style="text-align: center; width: 45%;">
+            <p style="margin: 0; font-weight: bold; text-transform: uppercase;">LE CLIENT</p>
           </div>
         </div>
         
@@ -871,6 +1229,31 @@ window.FacturesPage = {
       }
 
       return "";
+    },
+    printBonLivraison() {
+      window.print();
+    },
+    exportBonLivraisonPDF() {
+      const el = document.getElementById("bon-livraison-preview-block");
+      if (!el) {
+        alert("Impossible de générer le PDF.");
+        return;
+      }
+
+      const filename = `bon_livraison_${this.form.numero.replace(
+        /[^a-zA-Z0-9]/g,
+        "_"
+      )}.pdf`;
+
+      html2pdf()
+        .set({
+          margin: 10,
+          filename: filename,
+          html2canvas: { scale: 2 },
+          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+        })
+        .from(el)
+        .save();
     },
     exportPDF() {
       // Utilise html2pdf.js pour exporter le bloc de preview
@@ -896,6 +1279,45 @@ window.FacturesPage = {
         })
         .from(el)
         .save();
+    },
+    printInvoice() {
+      // Ouvrir la fenêtre d'impression du navigateur
+      window.print();
+    },
+    async openPreviewFromList(f) {
+      // Stocker la facture
+      localStorage.setItem("facture_preview", JSON.stringify(f));
+
+      // Stocker les settings et les données nécessaires
+      const settings = await window.settingsStore.get();
+      localStorage.setItem("app_settings", JSON.stringify(settings));
+      localStorage.setItem("app_clients", JSON.stringify(this.clients));
+      localStorage.setItem(
+        "app_designations",
+        JSON.stringify(this.designations)
+      );
+      localStorage.setItem("app_unites", JSON.stringify(this.unites));
+      localStorage.setItem("app_taxes", JSON.stringify(this.taxes));
+
+      // Ouvrir dans un nouvel onglet
+      window.open("preview-facture.html", "_blank");
+    },
+    async openBonLivraisonPage(f) {
+      // Stocker la facture
+      localStorage.setItem("facture_preview", JSON.stringify(f));
+
+      // Stocker les settings et les données nécessaires
+      const settings = await window.settingsStore.get();
+      localStorage.setItem("app_settings", JSON.stringify(settings));
+      localStorage.setItem("app_clients", JSON.stringify(this.clients));
+      localStorage.setItem(
+        "app_designations",
+        JSON.stringify(this.designations)
+      );
+      localStorage.setItem("app_unites", JSON.stringify(this.unites));
+
+      // Ouvrir dans un nouvel onglet
+      window.open("preview-bon-livraison.html", "_blank");
     },
     async sendEmail() {
       // Génère le PDF en blob, puis envoie via EmailJS
@@ -972,16 +1394,17 @@ window.FacturesPage = {
         <table class="min-w-full bg-white dark:bg-gray-800 rounded shadow">
           <thead>
             <tr class="bg-gray-100 dark:bg-gray-700">
+              <th class="px-4 py-2 text-left">Date</th>
               <th class="px-4 py-2 text-left">Numéro</th>
               <th class="px-4 py-2 text-left">Type</th>
               <th class="px-4 py-2 text-left">Client</th>
-              <th class="px-4 py-2 text-left">Date</th>
               <th class="px-4 py-2 text-left">Total TTC</th>
               <th class="px-4 py-2 text-left">Actions</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="f in filtered" :key="f.id">
+              <td class="px-4 py-2">{{ helpers.formatDateFrancais(f.date) }}</td>
               <td class="px-4 py-2">{{ f.numero }}</td>
               <td class="px-4 py-2">
                 <span :class="f.type === 'proforma' ? 'bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs' : 'bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs'">
@@ -989,10 +1412,11 @@ window.FacturesPage = {
                 </span>
               </td>
               <td class="px-4 py-2">{{ clientLabel(f.clientId) }}</td>
-              <td class="px-4 py-2">{{ f.date }}</td>
               <td class="px-4 py-2">{{ helpers.formatMontant(f.totalTTC, devise) }}</td>
               <td class="px-4 py-2">
-                <button class="text-blue-600 hover:underline mr-2" @click="openEdit(f)">Modifier</button>
+                <button v-if="f.type === 'proforma'" class="text-blue-600 hover:underline mr-2" @click="openEdit(f)">Modifier</button>
+                <button class="text-purple-600 hover:underline mr-2" @click="openPreviewFromList(f)">👁 Voir</button>
+                <button v-if="f.type === 'normale' || !f.type" class="text-orange-600 hover:underline mr-2" @click="openBonLivraisonPage(f)">📦 Bon</button>
                 <button class="text-red-600 hover:underline" @click="remove(f.id)">Supprimer</button>
               </td>
             </tr>
@@ -1017,10 +1441,9 @@ window.FacturesPage = {
           </div>
           
           <div class="grid grid-cols-1 md:grid-cols-3 gap-2 mb-2">
-            <!-- Champs visibles pour l'utilisateur -->
             <div>
               <label class="text-xs text-gray-600 dark:text-gray-400 block mb-1">Numéro</label>
-              <input v-model="form.numero" type="text" class="border rounded px-3 py-2 w-full bg-gray-100 dark:bg-gray-700 cursor-not-allowed" placeholder="Numéro" readonly>
+              <input v-model="form.numero" type="text" class="border rounded px-3 py-2 w-full dark:bg-gray-700 dark:text-white" placeholder="Numéro">
             </div>
             <div>
               <label class="text-xs text-gray-600 dark:text-gray-400 block mb-1">Client</label>
@@ -1031,12 +1454,8 @@ window.FacturesPage = {
             </div>
             <div>
               <label class="text-xs text-gray-600 dark:text-gray-400 block mb-1">Date</label>
-              <input v-model="form.date" type="date" class="border rounded px-3 py-2 w-full bg-gray-100 dark:bg-gray-700 cursor-not-allowed" readonly>
+              <input v-model="form.date" type="date" class="border rounded px-3 py-2 w-full dark:bg-gray-700 dark:text-white">
             </div>
-            
-            <!-- Champs cachés dupliqués pour garantir l'envoi -->
-            <input type="hidden" :value="form.numero" name="numero_hidden">
-            <input type="hidden" :value="form.date" name="date_hidden">
           </div>
           
           <!-- Champ Objet -->
@@ -1161,7 +1580,13 @@ window.FacturesPage = {
                 {{ editId ? 'Mettre à jour' : 'Enregistrer' }}
               </button>
             </div>
-            <button class="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700" @click="showPreview">👁 Prévisualiser</button>
+             
+            <!--
+            <div class="flex gap-2">
+              <button v-if="form.type === 'normale' || !form.type" class="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700" @click="showBonLivraisonPreview">📦 Bon de livraison</button>
+              <button class="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700" @click="showPreview">👁 Prévisualiser</button>
+            </div>
+            -->
           </div>
           
           <!-- Preview -->
@@ -1172,6 +1597,7 @@ window.FacturesPage = {
               </div>
               <div class="flex flex-col gap-2">
                 <button class="text-sm px-3 py-1 bg-gray-200 dark:bg-gray-600 rounded hover:bg-gray-300" @click="hidePreview">✕ Fermer</button>
+                <button class="text-sm px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700" @click="printInvoice">🖨️ Imprimer</button>
                 <button class="text-sm px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700" @click="exportPDF">📄 PDF</button>
                 <button class="text-sm px-3 py-1 bg-pink-600 text-white rounded hover:bg-pink-700" @click="sendEmail">📧 Email</button>
               </div>
@@ -1186,6 +1612,24 @@ window.FacturesPage = {
             <!-- Conteneur pour le HTML généré dynamiquement -->
             <div id="facture-preview-block" class="border rounded shadow-lg overflow-auto" style="max-height: 600px;" v-html="previewHTML"></div>
           </div>
+
+          <!-- Bon de Livraison Preview -->
+          <div v-if="showBonLivraison" class="mt-6 border-t pt-4">
+            <div class="mb-2 flex justify-between items-start">
+              <div class="flex-1">
+                <div class="text-sm text-gray-600 dark:text-gray-400 mb-2">Aperçu du bon de livraison</div>
+              </div>
+              <div class="flex flex-col gap-2">
+                <button class="text-sm px-3 py-1 bg-gray-200 dark:bg-gray-600 rounded hover:bg-gray-300" @click="hideBonLivraison">✕ Fermer</button>
+                <button class="text-sm px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700" @click="printBonLivraison">🖨️ Imprimer</button>
+                <button class="text-sm px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700" @click="exportBonLivraisonPDF">📄 PDF</button>
+              </div>
+            </div>
+            
+            <!-- Conteneur pour le HTML du bon de livraison -->
+            <div id="bon-livraison-preview-block" class="border rounded shadow-lg overflow-auto" style="max-height: 600px;" v-html="bonLivraisonHTML"></div>
+          </div>
+
         </div>
       </div>
     </div>

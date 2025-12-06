@@ -14,7 +14,7 @@ window.db.version(1).stores({
     "++id, numero, clientId, date, type, objet, garantie, validiteOffre, delaisLivraison, delaisExecution, conditionPaiement, lignes, totalHT, totalTVA, totalTTC",
   bons_commandes: "++id, numero, fournisseurId, date, lignes, total",
   settings:
-    "id, theme, sidebarColor, devisePrincipale, devises, tauxConversion, facturePrefix, factureIncrement, modeleFacture, logoEntete, logoPiedPage, mentionSpeciale",
+    "id, theme, sidebarColor, devisePrincipale, devises, tauxConversion, facturePrefix, factureIncrement, modeleFacture, modeleBonLivraison, logoEntete, logoPiedPage, mentionSpeciale",
 });
 
 // Chargement initial si DB vide

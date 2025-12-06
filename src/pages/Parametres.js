@@ -13,6 +13,7 @@ window.ParametresPage = {
       facturePrefix: "FAC",
       factureIncrement: 1,
       modeleFacture: "modele1",
+      modeleBonLivraison: "modele1",
       logoEntete: "",
       logoPiedPage: "",
       mentionSpeciale: "",
@@ -37,6 +38,7 @@ window.ParametresPage = {
       this.facturePrefix = settings.facturePrefix || "FAC";
       this.factureIncrement = settings.factureIncrement || 1;
       this.modeleFacture = settings.modeleFacture || "modele1";
+      this.modeleBonLivraison = settings.modeleBonLivraison || "modele1";
       this.logoEntete = settings.logoEntete || "";
       this.logoPiedPage = settings.logoPiedPage || "";
       this.mentionSpeciale = settings.mentionSpeciale || "";
@@ -50,6 +52,7 @@ window.ParametresPage = {
       if (key === "facturePrefix") this.facturePrefix = value;
       if (key === "factureIncrement") this.factureIncrement = value;
       if (key === "modeleFacture") this.modeleFacture = value;
+      if (key === "modeleBonLivraison") this.modeleBonLivraison = value;
       if (key === "logoEntete") this.logoEntete = value;
       if (key === "logoPiedPage") this.logoPiedPage = value;
       if (key === "mentionSpeciale") this.mentionSpeciale = value;
@@ -71,6 +74,7 @@ window.ParametresPage = {
         facturePrefix: this.facturePrefix,
         factureIncrement: Number(this.factureIncrement),
         modeleFacture: this.modeleFacture,
+        modeleBonLivraison: this.modeleBonLivraison,
         logoEntete: this.logoEntete,
         logoPiedPage: this.logoPiedPage,
         mentionSpeciale: this.mentionSpeciale,
@@ -205,6 +209,14 @@ window.ParametresPage = {
               <option v-for="m in modeles" :value="m.code">{{ m.label }}</option>
             </select>
             <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Choisissez le style de vos factures PDF</p>
+          </div>
+
+          <div class="mb-4">
+            <label class="block mb-2 font-semibold dark:text-gray-300">Modèle de bon de livraison</label>
+            <select v-model="modeleBonLivraison" class="w-full border rounded px-3 py-2 dark:bg-gray-700 dark:text-white dark:border-gray-600">
+              <option v-for="m in modeles" :value="m.code">{{ m.label }}</option>
+            </select>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Choisissez le style de vos bons de livraison</p>
           </div>
         </div>
         

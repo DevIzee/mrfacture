@@ -154,7 +154,7 @@ window.DesignationsPage = {
     <div>
       <div class="flex justify-between items-center mb-4">
         <h2 class="text-2xl font-bold">Designations</h2>
-        <button class="bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700" @click="openAdd">Ajouter</button>
+        <button class="bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700" @click="openAdd">Nouvelle désignation</button>
       </div>
       <div class="mb-4 flex items-center">
         <input v-model="search" type="text" class="border rounded px-3 py-2 w-full md:w-1/3" placeholder="Recherche désignation...">
