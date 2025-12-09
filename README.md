@@ -1,261 +1,322 @@
-# Mr Facture
+# ELYOT
 
-A fast, modern web-based invoice management application built as a static site with no backend required.
+A fast, modern web-based invoice management application built as a static site with no backend required. Perfect for freelancers, small businesses, and entrepreneurs who need professional invoicing without the complexity.
 
-## 🚀 Features
+## ✨ Key Features
 
-### Core Functionality
+### 📄 Invoice Management
 
-- **Invoice Management**: Create, edit, and manage invoices and proforma invoices
-- **Client & Supplier Management**: Comprehensive contact database
-- **Product Catalog**: Manage products and services with categories, units, and pricing
-- **Tax Management**: Support for multiple tax types (VAT, ABIC, etc.)
-- **PDF Generation**: Export invoices in 3 customizable templates
-- **Email Integration**: Send invoices directly via email (EmailJS)
-- **Dashboard**: Real-time statistics and revenue tracking
+- **Standard Invoices**: Professional invoices with automatic numbering and locked editing after creation
+- **Proforma Invoices**: Quotations with validity periods, delivery terms, execution deadlines, and editable after creation
+- **Smart Numbering**: Customizable prefix and increment system (e.g., FAC-0001, FAC-0002)
+- **Line-Item Details**: Per-line VAT calculation with automatic totals
+- **Price Validation**: Minimum pricing enforcement to prevent underpricing
+- **Amount in Words**: Automatic conversion of invoice totals to written form
 
-### Advanced Features
+### 🎨 PDF Generation
 
-- **Command Palette** (Ctrl+K): Quick access to all actions and navigation
-- **Dark Mode**: Full dark theme support with customizable sidebar colors
-- **Multi-Currency Support**: EUR, XOF, USD with automatic formatting
-- **Import/Export**: JSON and Excel (.xlsx) data exchange
-- **Offline-First**: Works completely offline using IndexedDB
-- **Customizable Invoicing**:
-  - Custom prefixes and numbering
-  - Multiple invoice templates
-  - Logo support (header & footer)
-  - Custom legal mentions
-  - Minimum pricing enforcement
-  - Warranty and payment terms
+- **Three Professional Templates**:
+  - **Classic**: Traditional business invoice layout
+  - **Modern**: Contemporary design with gradients and vibrant colors
+  - **Minimalist**: Clean, typography-focused style
+- **Custom Branding**: Add header and footer logos (supports Google Drive URLs)
+- **Legal Mentions**: Custom footer text for terms and conditions
+- **Print & Export**: Direct browser printing and PDF download
 
-### Invoice Types
+### 📦 Delivery Notes & Purchase Orders
 
-- **Standard Invoice**: Regular invoicing with automatic numbering
-- **Proforma Invoice**: Quotes with validity period, delivery terms, and execution deadlines
+**Delivery Notes (Bons de Livraison)**
 
-## 🛠️ Technical Stack
+- Generate delivery notes from invoices
+- Same three template options as invoices
+- Shows quantities without pricing information
+- Perfect for shipping and logistics
 
-- **Framework**: [Vue.js 3](https://vuejs.org/) (CDN)
-- **Styling**: [TailwindCSS](https://tailwindcss.com/) + [Flowbite](https://flowbite.com/)
-- **Database**: [Dexie.js](https://dexie.org/) (IndexedDB wrapper)
-- **PDF Export**: [html2pdf.js](https://github.com/eKoopmans/html2pdf.js)
-- **Spreadsheet**: [SheetJS (xlsx)](https://sheetjs.com/)
-- **Email**: [EmailJS](https://www.emailjs.com/)
-- **Charts**: [ApexCharts](https://apexcharts.com/)
+**Purchase Orders (Bons de Commande)**
+
+- Complete purchase order management with automatic numbering
+- Supplier selection and contact tracking
+- Multi-line items with products/services
+- Optional shipping cost (added after taxes)
+- Transport mode specification
+- Delivery location tracking
+- **Payment Terms**: Custom payment conditions
+- **Three Professional Templates**: Classic, Modern, Minimalist
+- **PDF Export & Print**: Professional purchase order documents
+
+### 💼 Contact Management
+
+- **Clients**: Full customer database with contact information
+- **Suppliers**: Supplier management for purchase orders
+- **Search & Filter**: Quick filtering across all contacts
+
+### 📊 Product Catalog
+
+- **Products & Services**: Differentiate between physical products and services
+- **Categories**: Organize products by category
+- **Units of Measure**: Define measurement units with abbreviations
+- **Pricing Control**: Set selling prices and minimum acceptable prices
+- **References**: Track product SKUs and codes
+
+### 💰 Tax Management
+
+- **Multiple Tax Types**: Support for VAT, ABIC, and custom taxes
+- **Per-Line Tax**: Apply different tax rates to individual invoice lines
+- **Automatic Calculation**: Real-time tax computation
+
+### 📈 Analytics Dashboard
+
+- **Revenue Statistics**: Total revenue tracking with breakdown by invoice type
+- **Monthly Trends**: Visual charts showing revenue over time (Chart.js)
+- **Top Clients**: Identify your best customers
+- **Product Performance**: Track best-selling products and services
+- **Category Analysis**: Revenue breakdown by product category
+- **Key Metrics**: Quick stats for invoices, clients, suppliers, and products
+
+### ⚡ Command Palette (Ctrl+K)
+
+- **Quick Navigation**: Jump to any page instantly
+- **Fast Actions**: Create invoices, clients, products without mouse clicks
+- **Keyboard Shortcuts**: Navigate efficiently with arrow keys
+- **Search**: Find actions by keywords
+
+### 🌍 Multi-Currency Support
+
+- EUR (Euro), XOF (Franc CFA), USD (Dollar)
+
+### 🎨 Modern UI/UX
+
+- **Dark Mode**: Full dark theme support with automatic color adaptation
+- **Color Customization**: Personalize sidebar colors
+- **French Interface**: Complete French localization
+
+### 💾 Data Management
+
+- **Import/Export JSON**: Full database backup and restore
+- **Excel Support**: Export individual tables (.xlsx format)
+- **IndexedDB Storage**: Reliable browser-based persistence (~50MB capacity)
+- **No Backend Required**: All data stays on your device
+
+### 📧 Email Integration
+
+- Send invoices directly via EmailJS (configuration required)
+- Automatic PDF attachment generation
+
+## 🛠️ Technical Architecture
+
+### Frontend Framework
+
+- **Vue.js 3** (Global Build via CDN): Reactive component-based architecture
+- **Composition API**: Modern Vue 3 setup() syntax
+- **Options API**: Used in page components for simplicity
+
+### Styling
+
+- **TailwindCSS** (via CDN): Utility-first CSS framework
+- **Dark Mode**: Class-based dark mode with full component support
+
+### Database
+
+- **Dexie.js**: Elegant IndexedDB wrapper for client-side storage
+- **Auto-increment IDs**: Primary keys for all entities
+- **Reactive Store Pattern**: Proxy-based reactive settings with event bus
+
+### PDF & Export
+
+- **html2pdf.js**: Convert HTML templates to downloadable PDFs
+- **SheetJS (xlsx)**: Excel file import/export capabilities
+- **Chart.js**: Beautiful, responsive charts for analytics
+
+### Additional Libraries
+
+- **EmailJS**: Email sending without backend server
+- **Google Fonts**: Typography support
 
 ## 📁 Project Structure
 
 ```
-mr-facture/
+elyot/
 ├── data/
-│   └── db-template.json          # Initial database template
+│   └── db-template.json          # Initial database template with default settings
+│
 ├── public/
-│   └── index.html                # Application entry point
+│   ├── index.html                # Main application entry point
+│   ├── preview-facture.html      # Invoice preview & print page
+│   ├── preview-bon-livraison.html # Delivery note preview & print page
+│   └── preview-bon-commande.html  # Purchase order preview & print page
+│
 └── src/
-    ├── app.js                    # Vue app initialization
+    ├── app.js                    # Vue app initialization and mounting
+    │
     ├── components/
-    │   └── App.vue.js            # Main app component with command palette
-    ├── pages/
-    │   ├── pages.js              # Page loader
-    │   ├── Dashboard.js          # Analytics dashboard
-    │   ├── Clients.js            # Client management
+    │   └── App.vue.js            # Main app component with sidebar, header, command palette
+    │
+    ├── pages/                    # Page components (Options API)
+    │   ├── pages.js              # Page loading verification
+    │   ├── Dashboard.js          # Analytics dashboard with Chart.js graphs
+    │   ├── Clients.js            # Client CRUD operations
     │   ├── Fournisseurs.js       # Supplier management
-    │   ├── Taxes.js              # Tax management
-    │   ├── Unites.js             # Unit management
-    │   ├── Categories.js         # Category management
+    │   ├── Taxes.js              # Tax rate management (VAT, ABIC)
+    │   ├── Unites.js             # Units of measure
+    │   ├── Categories.js         # Product categories
     │   ├── Designations.js       # Product/service catalog
-    │   ├── Factures.js           # Invoice management
+    │   ├── Factures.js           # Invoice creation and management
     │   ├── BonsCommandes.js      # Purchase orders
-    │   ├── Parametres.js         # Settings & configuration
-    │   └── ImportExport.js       # Data import/export
+    │   ├── Parametres.js         # Settings and configuration
+    │   └── ImportExport.js       # Data import/export utilities
+    │
     ├── store/
-    │   ├── db.js                 # Dexie database configuration
-    │   └── stores.js             # Data stores with reactive settings
+    │   ├── db.js                 # Dexie database schema and initialization
+    │   └── stores.js             # Reactive data stores for all entities
+    │
     └── utils/
-        └── helpers.js            # Utility functions
+        └── helpers.js            # Utility functions (formatting, conversion)
 ```
 
-## 🚦 How to Run
+## 🚀 Getting Started
 
-Since the project has no build step and uses CDN dependencies, you only need a local web server.
+### Prerequisites
 
-### Option 1: Python HTTP Server
+- A modern web browser (Chrome, Firefox, Safari, Edge)
+- A local web server (for security reasons, browsers block IndexedDB on `file://` protocol)
+
+### Installation
+
+**No build step required!** Just serve the files:
+
+#### Option 1: Python HTTP Server
 
 ```bash
-# Python 3
-python -m http.server
-
-# Python 2
-python -m SimpleHTTPServer
+python -m http.server 8000
 ```
 
-Then open [http://localhost:8000](http://localhost:8000)
+Then open [http://localhost:8000/public/](http://localhost:8000/public/)
 
-### Option 2: Node.js http-server
+#### Option 2: Node.js http-server
 
 ```bash
-npx http-server .
+npx http-server . -p 8080
 ```
 
-Then open the URL shown in the terminal (usually [http://localhost:8080](http://localhost:8080))
+## 📖 User Guide
 
-### Option 3: VS Code Live Server
+### Creating Your First Invoice
 
-1. Install the "Live Server" extension
-2. Right-click on `public/index.html`
-3. Select "Open with Live Server"
+1. **Add a Client**: Navigate to Clients → New Client
+2. **Add Products/Services**: Go to Designations → New Designation
+3. **Set Tax Rates**: Configure taxes in Taxes section (e.g., VAT 18%)
+4. **Create Invoice**:
+   - Go to Factures → New Invoice
+   - Select client and date
+   - Choose invoice type (Normal or Proforma)
+   - Add line items with quantities and prices
+   - System calculates totals automatically
+5. **Preview & Export**: Click "Prévisualiser" to see PDF, print, or email
 
-## ⌨️ Keyboard Shortcuts
+### Keyboard Shortcuts
 
-- **Ctrl+K** (or Cmd+K): Open command palette
-- **Arrow Up/Down**: Navigate command palette
+- **Ctrl+K** (or Cmd+K on Mac): Open command palette
+- **Arrow Up/Down**: Navigate commands
 - **Enter**: Execute selected command
 - **Escape**: Close command palette
 
-## 📊 Command Palette Features
+### Using the Command Palette
 
-The command palette provides instant access to:
+Press `Ctrl+K` and type:
 
-- **Navigation**: Jump to any page
-- **Quick Actions**:
-  - Create new invoice
-  - Add client, supplier, tax, unit, category, product, purchase order
-- **Search**: Find actions by keywords
+- "nouvelle facture" → Create new invoice
+- "client" → Add or navigate to clients
+- "dashboard" → Jump to dashboard
+- "import" → Go to import/export
 
-## 🎨 Customization
+### Managing Settings
 
-### Invoice Templates
+Navigate to **Paramètres** to customize:
 
-Three professionally designed templates:
+- **Appearance**: Theme (light/dark) and sidebar color
+- **Currency**: Choose EUR, XOF, or USD
+- **Invoice Numbering**: Set prefix and increment step
+- **Templates**: Select invoice and delivery note styles
+- **Branding**: Add logos and legal mentions
+- **Database**: Reset settings or clear all data
 
-1. **Classic**: Traditional business invoice layout
-2. **Modern**: Gradient-based contemporary design
-3. **Minimalist**: Clean, typography-focused style
+### Working with Image Hosting for Logos
 
-### Settings (Paramètres)
+The application supports external image URLs for logos. **Recommended hosting: imgBB**
 
-- **Theme**: Light/Dark mode
-- **Currency**: EUR, XOF, USD
-- **Invoice Numbering**: Custom prefix and increment step
-- **Visual Identity**: Header and footer logos
-- **Legal Mentions**: Custom footer text for invoices
+#### Using imgBB (Recommended)
+
+1. Go to [imgbb.com](https://imgbb.com/)
+2. Upload your logo image
+3. Copy the **Direct Link** URL (ends with .png, .jpg, etc.)
+4. Paste into Settings → Logo fields
+5. Your logo will display immediately
+
+#### Image URL Requirements
+
+- Must be a **direct image URL** (e.g., `https://i.ibb.co/xxxxx/logo.png`)
+- Supported formats: PNG, JPG, JPEG, GIF, SVG
+- Recommended size: Max 500KB for fast loading
+- Must be publicly accessible (no authentication required)
 
 ## 💾 Data Management
 
-### Import/Export
+**JSON Import/Export** (Recommended):
 
-- **JSON**: Full database backup/restore
-- **Excel**: Per-table import/export
-  - Clients, Suppliers, Taxes, Units, Categories, Products, Invoices, Purchase Orders
-  - **Special**: Export products only (filters designations by type)
+- Go to Import/Export → Export JSON
+- Saves complete database including all settings
+- Use for full backup and restore
 
-### Database Reset
+**Excel Export**:
 
-- Settings page includes options to:
-  - Reset all settings to defaults
-  - Clear entire database (with double confirmation)
+- Export individual tables (clients, invoices, etc.)
+- Useful for reporting and analysis
 
-## 🔒 Data Storage
+## 🌐 Browser Compatibility
 
-All data is stored locally in your browser using IndexedDB:
-
-- No server required
-- Complete privacy
-- Offline functionality
-- Automatic persistence
-
-## 📝 Invoice Features
-
-### Standard Invoices
-
-- Automatic numbering with custom prefix
-- Line items with quantities and unit prices
-- VAT calculation per line item
-- Minimum price enforcement
-- PDF export in 3 templates
-- Email sending capability
-
-### Proforma Invoices
-
-All standard features plus:
-
-- Offer validity period
-- Delivery deadlines
-- Execution deadlines
-- Payment terms
-- Editable after creation (standard invoices are locked)
-
-### Validation Rules
-
-- Required fields: Number, client, date, at least one line item
-- Each line must have: designation, quantity > 0, price ≥ 0
-- Price validation against minimum pricing
-- Special fields required for proforma invoices
-
-## 🌍 Localization
-
-- Interface: French (Français)
-- Currency formatting: Automatic based on selected currency
-- Date formatting: French format (DD/MM/YYYY)
-
-## 🤝 Contributing
-
-Contributions are welcome! Feel free to:
-
-- Report bugs
-- Suggest features
-- Submit pull requests
-
-## ☕ Support the Project
-
-If you find this project useful, consider supporting its development via the donation button in the app header.
-
-## 📄 License
-
-This project is open source and available for personal and commercial use.
-
-## 🔧 Technical Notes
-
-### Reactive Settings
-
-The application uses a Proxy-based reactive settings store that automatically propagates changes across all components using a custom event bus.
-
-### Command Palette Implementation
-
-Built with Vue 3 reactivity, keyboard navigation, and fuzzy search capabilities. Actions are dynamically loaded based on available pages and features.
-
-### PDF Generation
-
-Uses html2pdf.js to convert HTML invoice previews into downloadable PDFs with customizable page formatting (A4, portrait).
-
-### Database Schema
-
-- **taxes**: Tax rates and types
-- **unites**: Measurement units
-- **clients**: Client information
-- **fournisseurs**: Supplier information
-- **categories**: Product categories
-- **designations**: Products and services catalog
-- **factures**: Invoices with line items
-- **bons_commandes**: Purchase orders
-- **settings**: Application configuration
+- ✅ Chrome/Edge 90+ (Recommended)
+- ✅ Firefox 88+
+- ✅ Safari 14+
+- ✅ Opera 76+
 
 ## 🐛 Known Limitations
 
-- Email sending requires EmailJS configuration (SERVICE_ID and TEMPLATE_ID)
-- Browser storage limits apply (~50MB for IndexedDB)
-- PDF generation quality depends on browser rendering engine
+1. **Email Sending**: Requires EmailJS account and API key configuration
+2. **Storage Limit**: IndexedDB typically limited to ~50MB (varies by browser)
+3. **PDF Quality**: Depends on browser's rendering engine
 
-## 🔮 Future Enhancements
+## 🤝 Contributing
 
-- Multi-language support
-- Advanced reporting and analytics
-- Recurring invoices
-- Payment tracking
-- Client portal
-- Cloud backup integration
+Contributions are welcome! Areas for improvement:
+
+- [ ] Cloud backup integration (Google Drive, Dropbox)
+- [ ] Advanced reporting (Profit/Loss, Cash Flow)
+- [ ] Time tracking integration
+
+## 📄 License
+
+This project is **open source** and available for both personal and commercial use.
+
+## 🙏 Credits
+
+Built with amazing open-source technologies:
+
+- [Vue.js](https://vuejs.org/) - Progressive JavaScript Framework
+- [TailwindCSS](https://tailwindcss.com/) - Utility-first CSS
+- [Dexie.js](https://dexie.org/) - IndexedDB Wrapper
+- [Chart.js](https://www.chartjs.org/) - JavaScript Charting
+- [html2pdf.js](https://github.com/eKoopmans/html2pdf.js) - PDF Generation
+- [SheetJS](https://sheetjs.com/) - Excel Processing
+- [EmailJS](https://www.emailjs.com/) - Email Service
+
+## 💖 Support the Project
+
+If you find this project useful:
+
+- ⭐ Star the repository
+- 🐛 Report bugs and suggest features
+- ☕ [Buy me a coffee](https://www.paypal.com/donate) (donation button in app)
 
 ---
 
-**Built with ❤️ using Vue.js 3 and modern web technologies**
+**Built with ❤️ for small businesses and freelancers worldwide**

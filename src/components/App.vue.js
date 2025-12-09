@@ -49,7 +49,7 @@ window.App = {
       
       <!-- Sidebar -->
       <aside class="w-64 bg-white dark:bg-gray-800 shadow flex flex-col">
-        <div class="h-16 flex items-center justify-center font-bold text-xl border-b dark:border-gray-700">Mr Facture</div>
+        <div class="h-16 flex items-center justify-center font-bold text-xl border-b dark:border-gray-700">ELYOT</div>
         <nav class="flex-1 p-4 space-y-2">
           <a v-for="item in menu" :key="item.page" href="#" @click.prevent="currentPage = item.page" :class="['block py-2 px-4 rounded', currentPage === item.page ? 'bg-gray-200 dark:bg-gray-700 font-bold' : 'hover:bg-gray-100 dark:hover:bg-gray-700']">{{ item.label }}</a>
         </nav>
@@ -59,7 +59,17 @@ window.App = {
       <div class="flex-1 flex flex-col">
         <!-- Header -->
         <header class="h-16 bg-white dark:bg-gray-800 shadow flex items-center px-6 justify-between">
-          <h1 class="text-2xl font-semibold text-gray-800 dark:text-white">Bienvenue sur Mr Facture</h1>
+          <!--<h1 class="text-2xl font-semibold text-gray-800 dark:text-white">Bienvenue sur Elyot</h1>-->
+            <div class="flex items-center gap-4">
+              <a 
+                href="#" 
+                target="_blank"
+                class="px-4 py-2 rounded bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow hover:from-purple-700 hover:to-blue-700 flex items-center gap-2 font-semibold transition-all"
+                title="Découvrir la version professionnelle">
+                <span>⭐</span>
+                <span>Version Pro</span>
+              </a>
+            </div>
           <div class="flex items-center gap-2">
             <!-- Command Palette Button -->
             <button 

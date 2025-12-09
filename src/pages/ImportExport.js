@@ -119,6 +119,7 @@ window.ImportExportPage = {
           <button class="bg-green-600 text-white px-4 py-2 rounded shadow hover:bg-green-700" @click="exportJSON">Exporter JSON</button>
           <div v-if="exportMessage" class="text-green-600 text-sm mt-2">{{ exportMessage }}</div>
         </div>
+        <!--
         <div class="bg-white dark:bg-gray-800 rounded shadow p-4">
           <h3 class="font-semibold mb-2">Import Excel</h3>
           <div class="flex flex-wrap gap-2">
@@ -128,6 +129,7 @@ window.ImportExportPage = {
             </div>
           </div>
         </div>
+        -->
         <div class="bg-white dark:bg-gray-800 rounded shadow p-4">
           <h3 class="font-semibold mb-2">Export Excel</h3>
           <div class="flex flex-wrap gap-2">
