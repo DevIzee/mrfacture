@@ -34,6 +34,9 @@ window.FacturesPage = {
       previewHTML: "",
       showBonLivraison: false,
       bonLivraisonHTML: "",
+      gestionStock: false,
+      stocks: {},
+      helpers: window.helpers,
     };
   },
   computed: {
@@ -65,6 +68,12 @@ window.FacturesPage = {
     // Récupère la devise depuis settings au chargement
     const settings = await window.settingsStore.get();
     this.devise = (settings && settings.devisePrincipale) || "XOF";
+    this.gestionStock = settings?.gestionStock || false;
+
+    // Charger les stocks si gestion activée
+    if (this.gestionStock) {
+      await this.loadStocks();
+    }
 
     this.refresh();
 
@@ -75,11 +84,18 @@ window.FacturesPage = {
     }
 
     // Listener settings-changed pour devise
-    this._settingsListener = (e) => {
+    this._settingsListener = async (e) => {
+      // MODIFIER pour async
       const { key, value } = e.detail || {};
       if (key === "devisePrincipale") {
         this.devise = value;
-        this.refresh(); // Rafraîchit l'affichage avec la nouvelle devise
+        this.refresh();
+      }
+      if (key === "gestionStock") {
+        this.gestionStock = value;
+        if (value) {
+          await this.loadStocks();
+        }
       }
     };
     window.addEventListener("settings-changed", this._settingsListener);
@@ -243,13 +259,19 @@ window.FacturesPage = {
       this.form.lignes.splice(idx, 1);
       this.calcTotals();
     },
-    updateLigne(idx) {
+    async updateLigne(idx) {
       const l = this.form.lignes[idx];
       // Si une désignation est choisie, auto-remplir prix
       if (l.designationId) {
         const d = this.designations.find((d) => d.id == l.designationId);
         if (d) {
           l.prix = d.prix;
+        }
+
+        // Recharger le stock si gestion activée
+        if (this.gestionStock && d && d.type === "produit") {
+          const stock = await fluxStockStore.getStockActuel(l.designationId);
+          this.stocks[l.designationId] = stock;
         }
       }
       l.total = l.quantite * l.prix;
@@ -350,6 +372,14 @@ window.FacturesPage = {
         return false;
       }
 
+      // Vérification du stock pour les factures normales
+      if (this.form.type === "normale" && this.gestionStock) {
+        if (!this.checkStockDisponible()) {
+          this.error = this.getStockInsuffisantMessage();
+          return false;
+        }
+      }
+
       // Vérifications spécifiques pour les factures proforma
       if (this.form.type === "proforma") {
         if (!this.form.validiteOffre || !this.form.validiteOffre.trim()) {
@@ -395,10 +425,23 @@ window.FacturesPage = {
         if (this.editId) {
           await facturesStore.update(this.editId, data);
         } else {
-          await facturesStore.add(data);
+          // Créer la facture
+          const factureId = await facturesStore.add(data);
+
+          // Créer les flux de stock si facture normale et gestion activée
+          if (this.form.type === "normale" && this.gestionStock) {
+            await this.creerFluxStock(factureId, data);
+          }
         }
+
         this.showModal = false;
         this.refresh();
+
+        // Recharger les stocks après création
+        if (this.gestionStock) {
+          await this.loadStocks();
+        }
+
         // Message de succès (optionnel)
         if (window.App && window.App.showToast) {
           window.App.showToast("Facture enregistrée avec succès", "success");
@@ -1379,6 +1422,105 @@ window.FacturesPage = {
           "Erreur lors de la génération du PDF : " + err.message;
       }
     },
+    async loadStocks() {
+      // Charger les stocks pour tous les produits
+      this.stocks = {};
+      const produits = this.designations.filter((d) => d.type === "produit");
+
+      for (const produit of produits) {
+        const stock = await fluxStockStore.getStockActuel(produit.id);
+        this.stocks[produit.id] = stock;
+      }
+    },
+    getStock(designationId) {
+      return this.stocks[designationId] || 0;
+    },
+    checkStockDisponible() {
+      // Vérifier le stock pour chaque ligne (seulement pour factures normales)
+      if (this.form.type !== "normale") return true;
+      if (!this.gestionStock) return true;
+
+      for (const ligne of this.form.lignes) {
+        if (!ligne.designationId) continue;
+
+        const designation = this.designations.find(
+          (d) => d.id == ligne.designationId
+        );
+        if (designation && designation.type === "produit") {
+          const stockActuel = this.getStock(ligne.designationId);
+          if (stockActuel < ligne.quantite) {
+            return false;
+          }
+        }
+      }
+      return true;
+    },
+    getStockInsuffisantMessage() {
+      // Générer un message d'erreur détaillé pour les stocks insuffisants
+      const problemes = [];
+
+      for (const ligne of this.form.lignes) {
+        if (!ligne.designationId) continue;
+
+        const designation = this.designations.find(
+          (d) => d.id == ligne.designationId
+        );
+        if (designation && designation.type === "produit") {
+          const stockActuel = this.getStock(ligne.designationId);
+          if (stockActuel < ligne.quantite) {
+            problemes.push(
+              `${designation.nom}: stock actuel ${stockActuel}, demandé ${ligne.quantite}`
+            );
+          }
+        }
+      }
+
+      return "Stock insuffisant pour:\n" + problemes.join("\n");
+    },
+    async creerFluxStock(factureId, facture) {
+      // Créer un flux de sortie pour chaque ligne contenant un produit
+      const settings = await window.settingsStore.get();
+      const prefix = (settings && settings.fluxStockPrefix) || "FS";
+
+      for (const ligne of facture.lignes) {
+        const designation = this.designations.find(
+          (d) => d.id == ligne.designationId
+        );
+
+        // Créer un flux seulement pour les produits
+        if (designation && designation.type === "produit") {
+          // Générer un numéro de flux
+          const allFlux = await fluxStockStore.getAll();
+          const nums = allFlux
+            .map((f) => f.numero)
+            .filter((n) => n && n.startsWith(prefix + "-"))
+            .map((n) => parseInt(n.replace(prefix + "-", "")))
+            .filter((n) => !isNaN(n));
+
+          let nextNum = 1;
+          if (nums.length > 0) {
+            const maxNum = Math.max(...nums);
+            nextNum = maxNum + 1;
+          }
+          const numero = `${prefix}-${String(nextNum).padStart(4, "0")}`;
+
+          // Créer le flux
+          await fluxStockStore.add({
+            numero: numero,
+            date: facture.date,
+            dateReelle: facture.date,
+            fournisseurId: null,
+            quantite: ligne.quantite,
+            designationId: ligne.designationId,
+            type: "sortie",
+            nature: "facturation",
+            detailCourt: `Facture ${
+              facture.numero
+            } - Client: ${this.clientLabel(facture.clientId)}`,
+          });
+        }
+      }
+    },
   },
   // (ancienne section computed supprimée)
   template: `
@@ -1502,6 +1644,7 @@ window.FacturesPage = {
                 <thead>
                   <tr class="bg-gray-100 dark:bg-gray-700">
                     <th class="px-2 py-2 text-left">Désignation</th>
+                    <th v-if="gestionStock && form.type === 'normale'" class="px-2 py-2 text-left">Stock</th>
                     <th class="px-2 py-2 text-left">Quantité</th>
                     <th class="px-2 py-2 text-left">Prix unitaire</th>
                     <th class="px-2 py-2 text-left">Taxe TVA</th>
@@ -1516,6 +1659,14 @@ window.FacturesPage = {
                         <option value="">-- Sélectionner --</option>
                         <option v-for="d in designations" :value="d.id">{{ d.nom }}</option>
                       </select>
+                    </td>
+                    <td v-if="gestionStock && form.type === 'normale'" class="px-2 py-2">
+                      <span v-if="l.designationId && designations.find(d => d.id == l.designationId)?.type === 'produit'" 
+                            :class="['text-xs font-semibold', getStock(l.designationId) >= l.quantite ? 'text-green-600' : 'text-red-600']">
+                        {{ getStock(l.designationId) }}
+                        <span v-if="getStock(l.designationId) < l.quantite" class="block">⚠️ Insuffisant</span>
+                      </span>
+                      <span v-else class="text-xs text-gray-400">N/A</span>
                     </td>
                     <td class="px-2 py-2">
                       <input v-model.number="l.quantite" type="number" min="1" step="1" class="border rounded px-2 py-1 w-20 text-xs" @input="updateLigneField(idx, 'quantite', l.quantite)">

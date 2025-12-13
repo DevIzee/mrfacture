@@ -28,7 +28,7 @@ window.BonsCommandesPage = {
       },
       error: "",
       devise: "XOF",
-      helpers: window.helpers, // AJOUT ICI
+      helpers: window.helpers,
     };
   },
   async mounted() {

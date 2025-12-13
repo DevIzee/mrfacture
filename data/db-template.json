@@ -7,6 +7,7 @@
   "designations": [],
   "factures": [],
   "bons_commandes": [],
+  "flux_stock": [],
   "settings": [
     {
       "id": 1,
@@ -20,12 +21,15 @@
       "factureNumType": "prefix-increment",
       "bonCommandePrefix": "BC",
       "bonCommandeIncrement": 1,
+      "fluxStockPrefix": "FS",
+      "fluxStockIncrement": 1,
       "modeleFacture": "modele1",
       "modeleBonLivraison": "modele1",
       "modeleBonCommande": "modele1",
       "logoEntete": "",
       "logoPiedPage": "",
-      "mentionSpeciale": ""
+      "mentionSpeciale": "",
+      "gestionStock": false
     }
   ]
 }

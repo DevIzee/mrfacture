@@ -51,7 +51,10 @@ window.App = {
       <aside class="w-64 bg-white dark:bg-gray-800 shadow flex flex-col">
         <div class="h-16 flex items-center justify-center font-bold text-xl border-b dark:border-gray-700">ELYOT</div>
         <nav class="flex-1 p-4 space-y-2">
-          <a v-for="item in menu" :key="item.page" href="#" @click.prevent="currentPage = item.page" :class="['block py-2 px-4 rounded', currentPage === item.page ? 'bg-gray-200 dark:bg-gray-700 font-bold' : 'hover:bg-gray-100 dark:hover:bg-gray-700']">{{ item.label }}</a>
+          <a v-for="item in menu" :key="item.page" href="#" @click.prevent="currentPage = item.page" :class="['block py-2 px-4 rounded flex items-center justify-between', currentPage === item.page ? 'bg-gray-200 dark:bg-gray-700 font-bold' : 'hover:bg-gray-100 dark:hover:bg-gray-700']">
+            <span>{{ item.label }}</span>
+            <span v-if="item.pro" class="px-2 py-0.5 bg-gradient-to-r from-amber-400 to-orange-500 text-white text-xs font-bold rounded">PRO</span>
+          </a>
         </nav>
       </aside>
       
@@ -119,9 +122,10 @@ window.App = {
         { page: "Categories", label: "Catégories" },
         { page: "Designations", label: "Designations" },
         { page: "Factures", label: "Factures" },
-        { page: "BonsCommandes", label: "Bons de commande" },
+        { page: "BonsCommandes", label: "Bons de commande", pro: true },
+        { page: "FluxStock", label: "Flux de stock", pro: true },
         { page: "Parametres", label: "Paramètres" },
-        { page: "ImportExport", label: "Import/Export" },
+        { page: "ImportExport", label: "Import/Export", pro: true },
       ],
       toast: null,
       loading: false,
@@ -143,6 +147,7 @@ window.App = {
         Designations: window.DesignationsPage,
         Factures: window.FacturesPage,
         BonsCommandes: window.BonsCommandesPage,
+        FluxStock: window.FluxStockPage,
         Parametres: window.ParametresPage,
         ImportExport: window.ImportExportPage,
       };
@@ -365,6 +370,29 @@ window.App = {
             });
           },
         },
+        {
+          icon: "🔄",
+          label: "Nouveau flux de stock",
+          description: "Créer un nouveau flux de stock",
+          shortcut: "",
+          keywords: [
+            "flux",
+            "stock",
+            "nouveau",
+            "créer",
+            "ajouter",
+            "inventaire",
+          ],
+          action: () => {
+            this.currentPage = "FluxStock";
+            this.$nextTick(() => {
+              setTimeout(() => {
+                const event = new CustomEvent("open-flux-modal");
+                window.dispatchEvent(event);
+              }, 150);
+            });
+          },
+        },
       ];
     },
     getPageIcon(page) {
@@ -378,6 +406,7 @@ window.App = {
         Designations: "📝",
         Factures: "📄",
         BonsCommandes: "📦",
+        FluxStock: "🔄",
         Parametres: "⚙️",
         ImportExport: "💾",
       };

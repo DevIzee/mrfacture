@@ -13,9 +13,11 @@ window.db.version(1).stores({
   factures:
     "++id, numero, clientId, date, type, objet, garantie, validiteOffre, delaisLivraison, delaisExecution, conditionPaiement, lignes, totalHT, totalTVA, totalTTC",
   bons_commandes:
-    "++id, numero, fournisseurId, date, montantPort, lignes, tva, abic, modeTransport, lieuLivraison, conditionPaiement, totalHT, totalTTC",
+    "++id, numero, fournisseurId, date, montantPort, lignes, tva, abic, modeTransport, lieuLivraison, conditionPaiement, totalHT, totalTVA, totalABIC, totalTTC",
+  flux_stock:
+    "++id, numero, date, dateReelle, fournisseurId, quantite, designationId, type, nature, detailCourt",
   settings:
-    "id, theme, sidebarColor, devisePrincipale, devises, tauxConversion, facturePrefix, factureIncrement, bonCommandePrefix, bonCommandeIncrement, modeleFacture, modeleBonLivraison, modeleBonCommande, logoEntete, logoPiedPage, mentionSpeciale",
+    "id, theme, sidebarColor, devisePrincipale, devises, tauxConversion, facturePrefix, factureIncrement, bonCommandePrefix, bonCommandeIncrement, fluxStockPrefix, fluxStockIncrement, modeleFacture, modeleBonLivraison, modeleBonCommande, logoEntete, logoPiedPage, mentionSpeciale, gestionStock",
 });
 
 // Chargement initial si DB vide
@@ -29,6 +31,7 @@ async function initDB() {
     "designations",
     "factures",
     "bons_commandes",
+    "flux_stock",
     "settings",
   ];
   const res = await fetch("/data/db-template.json");

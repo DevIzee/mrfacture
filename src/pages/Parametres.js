@@ -17,6 +17,9 @@ window.ParametresPage = {
       modeleFacture: "modele1",
       modeleBonLivraison: "modele1",
       modeleBonCommande: "modele1",
+      fluxStockPrefix: "FS",
+      fluxStockIncrement: 1,
+      gestionStock: false,
       logoEntete: "",
       logoPiedPage: "",
       mentionSpeciale: "",
@@ -42,6 +45,9 @@ window.ParametresPage = {
       this.factureIncrement = settings.factureIncrement || 1;
       this.bonCommandePrefix = settings.bonCommandePrefix || "BC";
       this.bonCommandeIncrement = settings.bonCommandeIncrement || 1;
+      this.fluxStockPrefix = settings.fluxStockPrefix || "FS";
+      this.fluxStockIncrement = settings.fluxStockIncrement || 1;
+      this.gestionStock = settings.gestionStock || false;
       this.modeleFacture = settings.modeleFacture || "modele1";
       this.modeleBonLivraison = settings.modeleBonLivraison || "modele1";
       this.modeleBonCommande = settings.modeleBonCommande || "modele1";
@@ -59,6 +65,9 @@ window.ParametresPage = {
       if (key === "factureIncrement") this.factureIncrement = value;
       if (key === "bonCommandePrefix") this.bonCommandePrefix = value;
       if (key === "bonCommandeIncrement") this.bonCommandeIncrement = value;
+      if (key === "fluxStockPrefix") this.fluxStockPrefix = value;
+      if (key === "fluxStockIncrement") this.fluxStockIncrement = value;
+      if (key === "gestionStock") this.gestionStock = value;
       if (key === "modeleFacture") this.modeleFacture = value;
       if (key === "modeleBonLivraison") this.modeleBonLivraison = value;
       if (key === "modeleBonCommande") this.modeleBonCommande = value;
@@ -84,6 +93,9 @@ window.ParametresPage = {
         factureIncrement: Number(this.factureIncrement),
         bonCommandePrefix: this.bonCommandePrefix,
         bonCommandeIncrement: Number(this.bonCommandeIncrement),
+        fluxStockPrefix: this.fluxStockPrefix,
+        fluxStockIncrement: Number(this.fluxStockIncrement),
+        gestionStock: this.gestionStock,
         modeleFacture: this.modeleFacture,
         modeleBonLivraison: this.modeleBonLivraison,
         modeleBonCommande: this.modeleBonCommande,
@@ -110,6 +122,9 @@ window.ParametresPage = {
           modeleFacture: "modele1",
           modeleBonLivraison: "modele1",
           modeleBonCommande: "modele1",
+          fluxStockPrefix: "FS",
+          fluxStockIncrement: 1,
+          gestionStock: false,
           logoEntete: "",
           logoPiedPage: "",
           mentionSpeciale: "",
@@ -124,6 +139,9 @@ window.ParametresPage = {
         this.factureIncrement = settings.factureIncrement;
         this.bonCommandePrefix = settings.bonCommandePrefix;
         this.bonCommandeIncrement = settings.bonCommandeIncrement;
+        this.fluxStockPrefix = settings.fluxStockPrefix;
+        this.fluxStockIncrement = settings.fluxStockIncrement;
+        this.gestionStock = settings.gestionStock;
         this.modeleFacture = settings.modeleFacture;
         this.modeleBonLivraison = settings.modeleBonLivraison;
         this.modeleBonCommande = settings.modeleBonCommande;
@@ -174,7 +192,7 @@ window.ParametresPage = {
       <h2 class="text-2xl font-bold mb-6 dark:text-white">Paramètres</h2>
       <form class="space-y-6" @submit.prevent="save">
         
-        <!-- Apparence -->
+        <!-- Apparence
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
           <h3 class="text-lg font-semibold mb-4 dark:text-white">Apparence</h3>
           
@@ -193,7 +211,9 @@ window.ParametresPage = {
               <span class="text-sm text-gray-600 dark:text-gray-400">{{ sidebarColor }}</span>
             </div>
           </div>
+
         </div>
+        -->
         
         <!-- Devise -->
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
@@ -264,6 +284,35 @@ window.ParametresPage = {
             <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Choisissez le style de vos bons de commande PDF</p>
           </div>
         </div>
+
+        <!-- Gestion de Stock -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+          <h3 class="text-lg font-semibold mb-4 dark:text-white">Gestion de Stock</h3>
+          
+          <div class="mb-4">
+            <label class="flex items-center cursor-pointer">
+              <input type="checkbox" v-model="gestionStock" class="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500">
+              <span class="ml-3 font-semibold dark:text-gray-300">Activer la gestion de stock</span>
+            </label>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-2 ml-8">
+              Active le suivi des stocks pour les produits (désignations de type "produit")
+            </p>
+          </div>
+          
+          <div v-if="gestionStock" class="border-t pt-4 mt-4">
+            <div class="mb-4">
+              <label class="block mb-2 font-semibold dark:text-gray-300">Préfixe flux de stock</label>
+              <input v-model="fluxStockPrefix" type="text" class="w-full border rounded px-3 py-2 dark:bg-gray-700 dark:text-white dark:border-gray-600" placeholder="FS">
+              <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Exemple : FS-0001, FS-0002...</p>
+            </div>
+            
+            <div>
+              <label class="block mb-2 font-semibold dark:text-gray-300">Pas d'incrémentation (Flux de stock)</label>
+              <input v-model="fluxStockIncrement" type="number" min="1" class="w-full border rounded px-3 py-2 dark:bg-gray-700 dark:text-white dark:border-gray-600" placeholder="1">
+              <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">1 = numérotation normale (0001, 0002...)</p>
+            </div>
+          </div>
+        </div>
         
         <!-- Personnalisation PDF -->
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
@@ -287,11 +336,13 @@ window.ParametresPage = {
             </div>
           </div>
           
+          <!--
           <div>
             <label class="block mb-2 font-semibold dark:text-gray-300">Mention spéciale</label>
             <textarea v-model="mentionSpeciale" rows="3" class="w-full border rounded px-3 py-2 dark:bg-gray-700 dark:text-white dark:border-gray-600" placeholder="Texte à afficher en bas des documents (conditions générales, mentions légales...)"></textarea>
             <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Ce texte apparaîtra en bas de tous vos documents PDF</p>
           </div>
+          -->
         </div>
         
         <div class="flex justify-between items-center gap-3">

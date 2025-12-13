@@ -18,11 +18,19 @@ window.DesignationsPage = {
         categorieId: "",
       },
       error: "",
+      gestionStock: false,
+      stocks: {},
+      helpers: window.helpers,
     };
   },
   async mounted() {
     this.unites = await unitesStore.getAll();
     this.categories = await categoriesStore.getAll();
+
+    // Vérifier si la gestion de stock est activée
+    const settings = await window.settingsStore.get();
+    this.gestionStock = settings?.gestionStock || false;
+
     this.refresh();
 
     // Listener pour ouvrir depuis la command palette
@@ -30,8 +38,15 @@ window.DesignationsPage = {
     window.addEventListener("open-designation-modal", this._modalListener);
 
     // Listener settings-changed...
-    this._settingsListener = (e) => {
+    this._settingsListener = async (e) => {
       const { key, value } = e.detail || {};
+      if (key === "gestionStock") {
+        this.gestionStock = value;
+        if (value) {
+          // Recharger les stocks si activé
+          await this.loadStocks();
+        }
+      }
     };
     window.addEventListener("settings-changed", this._settingsListener);
   },
@@ -46,6 +61,30 @@ window.DesignationsPage = {
   methods: {
     async refresh() {
       this.designations = await designationsStore.getAll();
+
+      // Charger les stocks si gestion activée
+      if (this.gestionStock) {
+        await this.loadStocks();
+      }
+    },
+    async loadStocks() {
+      // Charger les stocks pour tous les produits
+      this.stocks = {};
+      const produits = this.designations.filter((d) => d.type === "produit");
+
+      for (const produit of produits) {
+        const stock = await fluxStockStore.getStockActuel(produit.id);
+        this.stocks[produit.id] = stock;
+      }
+    },
+    getStock(designationId) {
+      return this.stocks[designationId] || 0;
+    },
+    getStockClass(designationId) {
+      const stock = this.getStock(designationId);
+      if (stock <= 0) return "text-red-600 font-bold";
+      if (stock < 10) return "text-orange-600 font-semibold";
+      return "text-green-600 font-semibold";
     },
     openAdd() {
       this.editId = null;
@@ -159,6 +198,14 @@ window.DesignationsPage = {
       <div class="mb-4 flex items-center">
         <input v-model="search" type="text" class="border rounded px-3 py-2 w-full md:w-1/3" placeholder="Recherche désignation...">
       </div>
+      
+      <!-- Message si gestion de stock activée -->
+      <div v-if="gestionStock" class="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded">
+        <p class="text-sm text-blue-800 dark:text-blue-200">
+          📦 Gestion de stock activée - Les quantités en stock sont affichées pour les produits
+        </p>
+      </div>
+      
       <div class="overflow-x-auto">
         <table class="min-w-full bg-white dark:bg-gray-800 rounded shadow">
           <thead>
@@ -170,6 +217,7 @@ window.DesignationsPage = {
               <th class="px-4 py-2 text-left">Type</th>
               <th class="px-4 py-2 text-left">Référence</th>
               <th class="px-4 py-2 text-left">Catégorie</th>
+              <th v-if="gestionStock" class="px-4 py-2 text-left">Stock</th>
               <th class="px-4 py-2 text-left">Actions</th>
             </tr>
           </thead>
@@ -179,20 +227,31 @@ window.DesignationsPage = {
               <td class="px-4 py-2">{{ uniteLabel(d.uniteId) }}</td>
               <td class="px-4 py-2">{{ d.prix }}</td>
               <td class="px-4 py-2">{{ d.prixMin ?? '' }}</td>
-              <td class="px-4 py-2">{{ d.type === 'produit' ? 'Produit' : 'Service' }}</td>
+              <td class="px-4 py-2">
+                <span :class="['px-2 py-1 rounded text-xs font-semibold', d.type === 'produit' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800']">
+                  {{ d.type === 'produit' ? 'Produit' : 'Service' }}
+                </span>
+              </td>
               <td class="px-4 py-2">{{ d.reference || '' }}</td>
               <td class="px-4 py-2">{{ categorieLabel(d.categorieId) }}</td>
+              <td v-if="gestionStock" class="px-4 py-2">
+                <span v-if="d.type === 'produit'" :class="getStockClass(d.id)">
+                  {{ getStock(d.id) }}
+                </span>
+                <span v-else class="text-gray-400 text-xs">N/A</span>
+              </td>
               <td class="px-4 py-2">
                 <button class="text-blue-600 hover:underline mr-2" @click="openEdit(d)">Modifier</button>
                 <button class="text-red-600 hover:underline" @click="remove(d.id)">Supprimer</button>
               </td>
             </tr>
             <tr v-if="filtered.length === 0">
-              <td colspan="5" class="text-center text-gray-400 py-4">Aucune désignation</td>
+              <td :colspan="gestionStock ? 9 : 8" class="text-center text-gray-400 py-4">Aucune désignation</td>
             </tr>
           </tbody>
         </table>
       </div>
+      
       <!-- Modal Ajout/Modification -->
       <div v-if="showModal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
         <div class="bg-white dark:bg-gray-800 rounded shadow p-6 w-full max-w-sm relative">
