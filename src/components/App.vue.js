@@ -85,7 +85,7 @@ window.App = {
             
             <!-- Bouton Donation -->
             <a 
-              href="https://www.paypal.com/donate" 
+              href="" 
               target="_blank"
               class="px-4 py-2 rounded bg-pink-600 text-white shadow hover:bg-pink-700 flex items-center gap-2"
               title="Soutenir le projet">
